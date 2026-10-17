@@ -3,95 +3,138 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, ArrowRight } from "lucide-react";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { CatalystLogo } from "@/components/shared/catalyst-logo";
+import { Button } from "@/components/ui/button";
 
-const links = [
+const LINKS = [
   { href: "/features", label: "Features" },
   { href: "/demo", label: "Demo" },
-  { href: "/blog", label: "Blog" },
   { href: "/about", label: "About" },
+  { href: "/blog", label: "Blog" },
 ];
 
-export function Navbar() {
+export default function Navbar() {
+  const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    const handler = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
   }, []);
+
+  useEffect(() => { setOpen(false); }, [pathname]);
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-50 transition-all duration-200"
+      className="sticky top-0 z-50 w-full border-b transition-all duration-200"
       style={{
-        backgroundColor: scrolled ? "var(--surface)" : "transparent",
-        borderBottom: scrolled ? "1px solid var(--border)" : "1px solid transparent",
+        background: scrolled ? "var(--surface)" : "var(--bg)",
+        borderColor: scrolled ? "var(--border)" : "transparent",
         backdropFilter: scrolled ? "blur(12px)" : "none",
       }}
     >
-      <nav className="catalyst-container flex h-16 items-center justify-between">
-        <CatalystLogo href="/home" />
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
 
-        <div className="hidden items-center gap-8 md:flex">
-          {links.map((l) => (
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2">
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold"
+            style={{ background: "var(--accent)", color: "#171815" }}
+          >
+            SF
+          </div>
+          <span className="text-lg font-bold" style={{ color: "var(--text)" }}>
+            StaticFlow
+          </span>
+        </Link>
+
+        {/* Desktop nav */}
+        <nav className="hidden items-center gap-6 md:flex">
+          {LINKS.map(link => (
             <Link
-              key={l.href}
-              href={l.href}
+              key={link.href}
+              href={link.href}
               className="text-sm font-medium transition-colors hover:opacity-70"
-              style={{ color: pathname === l.href ? "var(--text)" : "var(--text-muted)" }}
+              style={{
+                color: pathname === link.href ? "var(--accent)" : "var(--muted)",
+              }}
             >
-              {l.label}
+              {link.label}
             </Link>
           ))}
-        </div>
+        </nav>
 
+        {/* Desktop CTA */}
         <div className="hidden items-center gap-3 md:flex">
-          <ThemeToggle />
-          <Link href="/login" className="text-sm font-medium transition-colors hover:opacity-70" style={{ color: "var(--text-muted)" }}>
-            Log in
+          <Link href="/login">
+            <Button variant="ghost" size="sm" style={{ color: "var(--text)" }}>
+              Log in
+            </Button>
           </Link>
-          <Link href="/register" className="catalyst-btn-primary !py-2 !px-4 !text-sm">
-            Get Started <ArrowRight className="h-3.5 w-3.5" />
+          <Link href="/register">
+            <Button size="sm" style={{ background: "var(--accent)", color: "#171815" }}>
+              Get Started
+            </Button>
           </Link>
         </div>
 
-        <div className="flex items-center gap-2 md:hidden">
-          <ThemeToggle />
-          <button onClick={() => setMobileOpen(!mobileOpen)} style={{ color: "var(--text)" }} aria-label="Menu">
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
-      </nav>
+        {/* Mobile hamburger */}
+        <button
+          className="rounded-lg p-2 md:hidden"
+          onClick={() => setOpen(!open)}
+          style={{ color: "var(--text)" }}
+          aria-label="Toggle menu"
+        >
+          {open ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 12h18M3 6h18M3 18h18" />
+            </svg>
+          )}
+        </button>
+      </div>
 
-      {mobileOpen && (
-        <div className="border-t md:hidden" style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}>
-          <div className="catalyst-container flex flex-col gap-1 py-4">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                onClick={() => setMobileOpen(false)}
-                className="rounded-md px-3 py-2.5 text-sm font-medium transition-colors"
-                style={{
-                  color: pathname === l.href ? "var(--text)" : "var(--text-muted)",
-                  backgroundColor: pathname === l.href ? "var(--surface-muted)" : "transparent",
-                }}
-              >
-                {l.label}
-              </Link>
-            ))}
-            <div className="mt-3 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
-              <Link href="/login" className="catalyst-btn-secondary !justify-center" onClick={() => setMobileOpen(false)}>Log in</Link>
-              <Link href="/register" className="catalyst-btn-primary !justify-center" onClick={() => setMobileOpen(false)}>Get Started Free</Link>
-            </div>
+      {/* Mobile dropdown */}
+      <div
+        className="overflow-hidden transition-all duration-300 md:hidden"
+        style={{
+          maxHeight: open ? 400 : 0,
+          background: "var(--surface)",
+          borderTop: open ? "1px solid var(--border)" : "none",
+        }}
+      >
+        <nav className="flex flex-col px-4 py-3">
+          {LINKS.map(link => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="rounded-lg px-3 py-2.5 text-sm font-medium"
+              style={{
+                color: pathname === link.href ? "var(--accent)" : "var(--text)",
+                background: pathname === link.href ? "var(--bg)" : "transparent",
+              }}
+            >
+              {link.label}
+            </Link>
+          ))}
+          <div className="mt-3 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+            <Link href="/login">
+              <Button variant="outline" className="w-full" style={{ borderColor: "var(--border)", color: "var(--text)" }}>
+                Log in
+              </Button>
+            </Link>
+            <Link href="/register">
+              <Button className="w-full" style={{ background: "var(--accent)", color: "#171815" }}>
+                Get Started
+              </Button>
+            </Link>
           </div>
-        </div>
-      )}
+        </nav>
+      </div>
     </header>
   );
 }
