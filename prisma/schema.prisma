@@ -1,0 +1,307 @@
+// StaticFlow — Complete Database Schema
+// PostgreSQL via Supabase / Neon
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────
+// USERS & AUTH
+// ──────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  avatarUrl String?  @map("avatar_url")
+  role      Role     @default(USER)
+  plan      Plan     @default(FREE)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  projects      Project[]
+  apiKeys       ApiKey[]
+  chatHistory   ChatMessage[]
+  teamMembers   TeamMember[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+// ──────────────────────────────────────────
+// PROJECTS
+// ──────────────────────────────────────────
+
+model Project {
+  id             String        @id @default(uuid())
+  userId         String        @map("user_id")
+  name           String
+  description    String?
+  language       String        @default("node-express")
+  framework      String        @default("express")
+  database       String        @default("postgresql")
+  status         ProjectStatus @default(DRAFT)
+  code           Json          @default("{}")
+  schema         Json?
+  endpointsCount Int           @default(0) @map("endpoints_count")
+  securityScore  Int           @default(0) @map("security_score")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoints       Endpoint[]
+  apiKeys         ApiKey[]
+  securityScans   SecurityScan[]
+  performanceTests PerformanceTest[]
+  deployments     Deployment[]
+  chatMessages    ChatMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("projects")
+}
+
+enum ProjectStatus {
+  DRAFT
+  ACTIVE
+  DEPLOYED
+  ARCHIVED
+}
+
+// ──────────────────────────────────────────
+// ENDPOINTS
+// ──────────────────────────────────────────
+
+model Endpoint {
+  id           String     @id @default(uuid())
+  projectId    String     @map("project_id")
+  method       HttpMethod
+  path         String
+  summary      String?
+  description  String?
+  requestBody  Json?      @map("request_body")
+  responseBody Json?      @map("response_body")
+  authRequired Boolean    @default(false) @map("auth_required")
+  roles        String[]   @default([])
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("endpoints")
+}
+
+enum HttpMethod {
+  GET
+  POST
+  PUT
+  PATCH
+  DELETE
+}
+
+// ──────────────────────────────────────────
+// API KEYS & SECRETS
+// ──────────────────────────────────────────
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  projectId   String    @map("project_id")
+  userId      String    @map("user_id")
+  keyName     String    @map("key_name")
+  keyPrefix   String    @map("key_prefix")
+  apiKeyHash  String    @map("api_key_hash")
+  permissions String[]  @default([])
+  ipWhitelist String[]  @default([]) @map("ip_whitelist")
+  expiresAt   DateTime? @map("expires_at")
+  isActive    Boolean   @default(true) @map("is_active")
+  lastUsedAt  DateTime? @map("last_used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+  @@map("api_keys")
+}
+
+model Secret {
+  id        String   @id @default(uuid())
+  projectId String   @map("project_id")
+  key       String
+  value     String   // Encrypted
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([projectId, key])
+  @@map("secrets")
+}
+
+// ──────────────────────────────────────────
+// SECURITY SCANS
+// ──────────────────────────────────────────
+
+model SecurityScan {
+  id              String      @id @default(uuid())
+  projectId       String      @map("project_id")
+  scanType        ScanType    @map("scan_type")
+  status          ScanStatus  @default(PENDING)
+  score           Int         @default(0)
+  grade           String      @default("F")
+  vulnerabilities Json        @default("[]")
+  reportUrl       String?     @map("report_url")
+  startedAt       DateTime    @default(now()) @map("started_at")
+  completedAt     DateTime?   @map("completed_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
+  @@map("security_scans")
+}
+
+enum ScanType {
+  QUICK
+  DEEP
+  FULL
+}
+
+enum ScanStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// ──────────────────────────────────────────
+// PERFORMANCE TESTS
+// ──────────────────────────────────────────
+
+model PerformanceTest {
+  id              String       @id @default(uuid())
+  projectId       String       @map("project_id")
+  testType        PerfTestType @map("test_type")
+  status          PerfStatus   @default(QUEUED)
+  avgResponseMs   Int          @default(0) @map("avg_response_ms")
+  p95ResponseMs   Int          @default(0) @map("p95_response_ms")
+  p99ResponseMs   Int          @default(0) @map("p99_response_ms")
+  throughputReqSec Int         @default(0) @map("throughput_req_sec")
+  errorRatePercent Float       @default(0) @map("error_rate_percent")
+  maxUsers        Int          @default(0) @map("max_users")
+  metrics         Json         @default("[]")
+  startedAt       DateTime     @default(now()) @map("started_at")
+  completedAt     DateTime?    @map("completed_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("performance_tests")
+}
+
+enum PerfTestType {
+  LOAD
+  STRESS
+  SPIKE
+  SOAK
+}
+
+enum PerfStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// ──────────────────────────────────────────
+// DEPLOYMENTS
+// ──────────────────────────────────────────
+
+model Deployment {
+  id         String          @id @default(uuid())
+  projectId  String          @map("project_id")
+  platform   String
+  status     DeploymentStatus @default(BUILDING)
+  url        String          @default("")
+  domain     String?
+  sslEnabled Boolean         @default(false) @map("ssl_enabled")
+  envVars    Json            @default("{}") @map("env_vars")
+  deployLogs String[]        @default([]) @map("deploy_logs")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("deployments")
+}
+
+enum DeploymentStatus {
+  BUILDING
+  DEPLOYING
+  LIVE
+  FAILED
+  ROLLED_BACK
+}
+
+// ──────────────────────────────────────────
+// CHAT HISTORY
+// ──────────────────────────────────────────
+
+model ChatMessage {
+  id         String      @id @default(uuid())
+  projectId  String?     @map("project_id")
+  userId     String      @map("user_id")
+  role       MessageRole
+  content    String
+  codeBlocks Json        @default("[]") @map("code_blocks")
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+  @@map("chat_history")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+// ──────────────────────────────────────────
+// TEAM
+// ──────────────────────────────────────────
+
+model TeamMember {
+  id       String    @id @default(uuid())
+  userId   String    @map("user_id")
+  role     TeamRole  @default(VIEWER)
+  joinedAt DateTime  @default(now()) @map("joined_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("team_members")
+}
+
+enum TeamRole {
+  ADMIN
+  DEVELOPER
+  TESTER
+  VIEWER
+}

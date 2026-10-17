@@ -1,0 +1,34 @@
+rules:
+  - id: hardcoded-jwt-secret
+    languages: [javascript, typescript, python]
+    severity: ERROR
+    message: "Hardcoded secret detected. Use environment variables instead of literal string keys."
+    patterns:
+      - pattern-either:
+          - pattern: jwt.sign($PAYLOAD, "...")
+          - pattern: jwt.verify($TOKEN, "...")
+          - pattern: jwt.encode($PAYLOAD, "...", ...)
+
+  - id: raw-sql-concatenation
+    languages: [javascript, typescript, python]
+    severity: ERROR
+    message: "SQL string concatenation detected. This may lead to SQL injection. Use parameterized queries or an ORM."
+    patterns:
+      - pattern-either:
+          - pattern: db.query("..." + $VAR + "...")
+          - pattern: db.execute(f"...{$VAR}...")
+          - pattern: prisma.$queryRawUnsafe("..." + $VAR)
+
+  - id: missing-rate-limiter
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: "Express route handler mounted without rate-limiting middleware on sensitive authentication endpoint."
+    patterns:
+      - pattern: app.post("/api/auth/$ROUTE", $HANDLER)
+
+  - id: disabled-helmet-protection
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: "Helmet security middleware disabled or misconfigured."
+    patterns:
+      - pattern: helmet({ contentSecurityPolicy: false })

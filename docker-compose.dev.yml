@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL (Dev) ──
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=staticflow
+      - POSTGRES_PASSWORD=staticflow_dev_2024
+      - POSTGRES_DB=staticflow
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U staticflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (Dev) ──
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Ollama (Dev) ──
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_dev_data:/root/.ollama
+
+volumes:
+  postgres_dev_data:
+  ollama_dev_data:

@@ -1,0 +1,30 @@
+{
+  "id": "tpl-ecommerce-pro",
+  "name": "E-Commerce Microservice Suite",
+  "version": "1.0.0",
+  "stack": {
+    "language": "node-express",
+    "framework": "express",
+    "database": "postgresql",
+    "orm": "prisma"
+  },
+  "features": [
+    "JWT Authentication with refresh rotation",
+    "Stripe Payment Gateway Checkout & Webhook signature validation",
+    "Product catalog with Category / Tag filtering and full-text search",
+    "Shopping Cart session persistence",
+    "Order state machine (PENDING, PAID, SHIPPED, DELIVERED, CANCELLED)",
+    "Inventory reservation locks on checkout",
+    "Helmet security headers & Rate limiting enabled"
+  ],
+  "endpoints": [
+    { "method": "POST", "path": "/api/v1/auth/register", "auth": false },
+    { "method": "POST", "path": "/api/v1/auth/login", "auth": false },
+    { "method": "GET", "path": "/api/v1/products", "auth": false },
+    { "method": "GET", "path": "/api/v1/products/:id", "auth": false },
+    { "method": "POST", "path": "/api/v1/cart/items", "auth": true },
+    { "method": "POST", "path": "/api/v1/checkout/create-session", "auth": true },
+    { "method": "POST", "path": "/api/v1/webhooks/stripe", "auth": false },
+    { "method": "GET", "path": "/api/v1/orders/my-orders", "auth": true }
+  ]
+}

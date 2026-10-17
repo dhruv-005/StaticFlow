@@ -1,0 +1,30 @@
+# Standalone Security Testing Worker Container
+FROM debian:bookworm-slim
+
+WORKDIR /engine
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    wget \
+    git \
+    python3 \
+    python3-pip \
+    python3-venv \
+    golang-go \
+    sqlmap \
+    jq \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir semgrep bandit
+
+RUN go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+ENV PATH="/root/go/bin:${PATH}"
+
+COPY security-engine/ .
+
+VOLUME ["/reports"]
+
+CMD ["/bin/bash", "scanners/owasp-zap.sh"]

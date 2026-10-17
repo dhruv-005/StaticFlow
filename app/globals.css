@@ -1,0 +1,293 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   CATALYST ENTERPRISE — SINGLE SOURCE OF TRUTH
+   This file controls the ENTIRE website theme.
+   Every page, every component reads from here.
+   ============================================ */
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --bg: #F7F8F6;
+    --surface: #FFFFFF;
+    --surface-muted: #EFF0EC;
+    --text: #20211F;
+    --text-muted: #696C65;
+    --border: #DFE1DA;
+    --accent: #DFFF00;
+    --accent-text: #20211F;
+    --accent-hover: #CFF000;
+    --success: #18794E;
+    --warning: #9A6700;
+    --danger: #C62828;
+    --info: #2463A6;
+  }
+
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #171815;
+    --surface: #20211F;
+    --surface-muted: #292B27;
+    --text: #F4F5F0;
+    --text-muted: #B0B3AA;
+    --border: #3A3C36;
+    --accent: #DFFF00;
+    --accent-text: #20211F;
+    --accent-hover: #E8FF33;
+    --success: #55C995;
+    --warning: #F1C66D;
+    --danger: #FF7777;
+    --info: #7EB8FF;
+  }
+
+  * {
+    border-color: var(--border);
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    margin: 0;
+    padding: 0;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-text);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--surface-muted);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* ── Layout ── */
+  .catalyst-container {
+    @apply mx-auto w-full px-4 sm:px-6 lg:px-8;
+    max-width: 1200px;
+  }
+  .catalyst-container-narrow {
+    @apply mx-auto w-full px-4 sm:px-6 lg:px-8;
+    max-width: 800px;
+  }
+
+  /* ── Card ── */
+  .catalyst-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: border-color 0.15s ease;
+  }
+  .catalyst-card-hover:hover {
+    border-color: var(--text-muted);
+  }
+
+  /* ── Buttons ── */
+  .catalyst-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    text-decoration: none;
+  }
+  .catalyst-btn-primary:hover {
+    background: var(--accent-hover);
+  }
+  .catalyst-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: transparent;
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+  }
+  .catalyst-btn-secondary:hover {
+    background: var(--surface-muted);
+    border-color: var(--text-muted);
+  }
+  .catalyst-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .catalyst-btn-ghost:hover {
+    background: var(--surface-muted);
+    color: var(--text);
+  }
+  .catalyst-btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: var(--danger);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+  }
+
+  /* ── Input ── */
+  .catalyst-input {
+    display: block;
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    outline: none;
+  }
+  .catalyst-input::placeholder {
+    color: var(--text-muted);
+  }
+  .catalyst-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(223, 255, 0, 0.15);
+  }
+
+  /* ── Badge ── */
+  .catalyst-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: var(--surface-muted);
+    color: var(--text-muted);
+  }
+  .catalyst-badge-accent {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .catalyst-badge-success {
+    background: color-mix(in srgb, var(--success) 10%, transparent);
+    color: var(--success);
+    border-color: color-mix(in srgb, var(--success) 20%, transparent);
+  }
+  .catalyst-badge-danger {
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 20%, transparent);
+  }
+  .catalyst-badge-warning {
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
+    color: var(--warning);
+    border-color: color-mix(in srgb, var(--warning) 20%, transparent);
+  }
+
+  /* ── Section ── */
+  .catalyst-section {
+    @apply py-16 sm:py-20 lg:py-24;
+  }
+
+  /* ── Divider ── */
+  .catalyst-divider {
+    height: 1px;
+    background: var(--border);
+    width: 100%;
+  }
+
+  /* ── Table ── */
+  .catalyst-table {
+    width: 100%;
+    text-align: left;
+    font-size: 0.875rem;
+    border-collapse: collapse;
+  }
+  .catalyst-table th {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background: var(--surface-muted);
+  }
+  .catalyst-table td {
+    padding: 0.75rem 1.25rem;
+    color: var(--text);
+    border-top: 1px solid var(--border);
+  }
+  .catalyst-table tr:hover td {
+    background: var(--surface-muted);
+  }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}

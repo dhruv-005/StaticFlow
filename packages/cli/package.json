@@ -1,0 +1,31 @@
+{
+  "name": "@staticflow/cli",
+  "version": "1.0.0",
+  "description": "StaticFlow Command Line Interface — Build, scan, test, and deploy APIs from your terminal.",
+  "bin": {
+    "staticflow": "./bin/staticflow.js",
+    "sf": "./bin/staticflow.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/bin/staticflow.js",
+    "dev": "tsx bin/staticflow.ts"
+  },
+  "keywords": ["staticflow", "api", "ai", "generator", "security", "owasp", "deploy"],
+  "author": "StaticFlow Core Team <dev@staticflow.dev>",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1",
+    "inquirer": "^8.2.6",
+    "axios": "^1.7.7",
+    "form-data": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "@types/inquirer": "^8.2.10",
+    "typescript": "^5.6.2",
+    "tsx": "^4.19.1"
+  }
+}
