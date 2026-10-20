@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  security-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: staticflow-security-runner
+    environment:
+      - TARGET_URL=${TARGET_URL:-http://host.docker.internal:3000}
+      - SCAN_DEPTH=${SCAN_DEPTH:-quick}
+      - REPORT_DIR=/engine/reports
+    volumes:
+      - ./reports:/engine/reports
+      - ../:/target:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - staticflow-sec-net
+
+  owasp-zap-daemon:
+    image: ghcr.io/zaproxy/zaproxy:stable
+    container_name: staticflow-zap-daemon
+    ports:
+      - "8080:8080"
+    command: zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.disablekey=true -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true
+    restart: unless-stopped
+    networks:
+      - staticflow-sec-net
+
+networks:
+  staticflow-sec-net:
+    driver: bridge

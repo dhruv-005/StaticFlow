@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.env
+.env.local
+backend/venv
+backend/__pycache__
+*.md
+.github
+coverage
+.vscode
+.idea

@@ -1,0 +1,23 @@
+{
+  "name": "@staticflow/sdk",
+  "version": "1.0.0",
+  "description": "Official TypeScript & JavaScript Client SDK for APIs built with StaticFlow.",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run"
+  },
+  "keywords": ["staticflow", "sdk", "api-client", "typescript", "realtime", "auth"],
+  "author": "StaticFlow Core Team <dev@staticflow.dev>",
+  "license": "MIT",
+  "dependencies": {
+    "socket.io-client": "^4.8.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2",
+    "@types/node": "^22.7.4"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "tpl-chat-webrtc",
+  "name": "Real-Time WebSocket Chat & Signaling",
+  "version": "1.0.0",
+  "stack": {
+    "language": "go-gin",
+    "framework": "gin",
+    "database": "mongodb",
+    "realtime": "gorilla/websocket"
+  },
+  "features": [
+    "High-throughput WebSocket multiplexing",
+    "Room broadcasting and direct 1-to-1 messaging",
+    "Typing indicators and live presence heartbeat",
+    "Message history persistence with MongoDB cursor pagination",
+    "WebRTC SDP / ICE candidate signaling broker"
+  ],
+  "endpoints": [
+    { "method": "GET", "path": "/ws", "auth": true },
+    { "method": "GET", "path": "/api/v1/rooms", "auth": true },
+    { "method": "POST", "path": "/api/v1/rooms", "auth": true },
+    { "method": "GET", "path": "/api/v1/rooms/:id/messages", "auth": true },
+    { "method": "POST", "path": "/api/v1/signaling/offer", "auth": true }
+  ]
+}

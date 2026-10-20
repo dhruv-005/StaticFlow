@@ -1,0 +1,22 @@
+# StaticFlow Nuclei Automation Profile
+severity:
+  - critical
+  - high
+  - medium
+
+tags:
+  - cve
+  - owasp-api
+  - misconfig
+  - exposure
+  - token-leak
+  - default-credentials
+
+rate-limit: 150
+concurrency: 25
+timeout: 5
+retries: 1
+
+headless: false
+project: true
+stats: true

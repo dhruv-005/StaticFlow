@@ -1,0 +1,27 @@
+{
+  "id": "tpl-saas-multitenant",
+  "name": "Multi-Tenant B2B SaaS Boilerplate",
+  "version": "1.0.0",
+  "stack": {
+    "language": "node-express",
+    "framework": "express",
+    "database": "postgresql",
+    "orm": "prisma"
+  },
+  "features": [
+    "Tenant schema isolation with Organization models",
+    "Role-Based Access Control (Admin, Member, Viewer)",
+    "Team invitation dispatch with expiring tokens",
+    "Stripe Customer Portal & Subscription billing tiers",
+    "Audit trail logging for sensitive mutations",
+    "Usage metering and request quota limits"
+  ],
+  "endpoints": [
+    { "method": "POST", "path": "/api/v1/orgs", "auth": true },
+    { "method": "GET", "path": "/api/v1/orgs/current", "auth": true },
+    { "method": "POST", "path": "/api/v1/orgs/invites", "auth": true },
+    { "method": "GET", "path": "/api/v1/billing/subscription", "auth": true },
+    { "method": "POST", "path": "/api/v1/billing/portal", "auth": true },
+    { "method": "GET", "path": "/api/v1/audit/logs", "auth": true }
+  ]
+}

@@ -1,0 +1,73 @@
+import { NextResponse } from "next/server";
+
+const templates = [
+  {
+    id: "tpl-ecommerce",
+    title: "E-Commerce API",
+    description: "Complete e-commerce backend with products, cart, orders, payments, and user auth.",
+    category: "E-Commerce",
+    language: "node-express",
+    database: "postgresql",
+    stars: 342,
+    downloads: 1250,
+    author: { name: "StaticFlow" },
+    promptTemplate: "Build an e-commerce API with products, shopping cart, orders, Stripe payments, and JWT authentication.",
+    createdAt: "2024-09-01",
+  },
+  {
+    id: "tpl-blog",
+    title: "Blog Platform API",
+    description: "Full-featured blog with posts, comments, likes, tags, and role-based access.",
+    category: "Content",
+    language: "python-fastapi",
+    database: "postgresql",
+    stars: 218,
+    downloads: 890,
+    author: { name: "StaticFlow" },
+    promptTemplate: "Build a blog API with posts, comments, likes, tags, and admin/author/reader roles.",
+    createdAt: "2024-09-05",
+  },
+  {
+    id: "tpl-saas",
+    title: "SaaS Boilerplate API",
+    description: "Multi-tenant SaaS with subscriptions, teams, billing, and usage tracking.",
+    category: "SaaS",
+    language: "node-express",
+    database: "postgresql",
+    stars: 456,
+    downloads: 2100,
+    author: { name: "StaticFlow" },
+    promptTemplate: "Build a multi-tenant SaaS API with user auth, team management, Stripe subscriptions, and usage metering.",
+    createdAt: "2024-08-20",
+  },
+  {
+    id: "tpl-chat",
+    title: "Real-Time Chat API",
+    description: "WebSocket chat with rooms, direct messages, typing indicators, and read receipts.",
+    category: "Social",
+    language: "go-gin",
+    database: "mongodb",
+    stars: 189,
+    downloads: 670,
+    author: { name: "StaticFlow" },
+    promptTemplate: "Build a real-time chat API with WebSocket rooms, direct messages, typing indicators, and message history.",
+    createdAt: "2024-09-10",
+  },
+  {
+    id: "tpl-healthcare",
+    title: "Healthcare Records API",
+    description: "HIPAA-compliant patient records with encryption, audit logs, and access control.",
+    category: "Healthcare",
+    language: "java-spring",
+    database: "postgresql",
+    stars: 127,
+    downloads: 340,
+    author: { name: "StaticFlow" },
+    promptTemplate: "Build a HIPAA-compliant healthcare API with patient records, appointment scheduling, and encrypted data storage.",
+    createdAt: "2024-09-15",
+  },
+];
+
+export async function GET() {
+  return NextResponse.json({ templates });
+}

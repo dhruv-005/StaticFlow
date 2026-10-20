@@ -1,0 +1,41 @@
+name: Production Deployment Pipeline
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-production:
+    name: Build & Deploy Container Stack
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Next.js Production Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.frontend
+          push: false
+          tags: staticflow/frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Python AI Engine Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.backend
+          push: false
+          tags: staticflow/backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Dispatch Deployment Webhook Notification
+        if: success()
+        run: |
+          echo "✅ Production Docker Containers Built Successfully."
