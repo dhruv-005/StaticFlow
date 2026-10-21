@@ -17,4 +17,7 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
+// Alias so routes can use either `import { prisma }` or `import { db }`
+export const db = prisma;
+
 export default prisma;

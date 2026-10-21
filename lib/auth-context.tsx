@@ -13,10 +13,7 @@ interface User {
   email: string;
   name: string | null;
   role: "USER" | "ADMIN";
-  avatar: string | null;
-  bio?: string | null;
-  company?: string | null;
-  verified?: boolean;
+  createdAt?: string;
   _count?: {
     apiKeys: number;
     projects: number;
@@ -90,9 +87,7 @@ export function AuthProvider({
       });
       const data = await res.json();
       if (!res.ok) {
-        return {
-          error: data.error || "Login failed",
-        };
+        return { error: data.error || "Login failed" };
       }
       await refresh();
       return {};
@@ -114,9 +109,7 @@ export function AuthProvider({
       });
       const data = await res.json();
       if (!res.ok) {
-        return {
-          error: data.error || "Registration failed",
-        };
+        return { error: data.error || "Registration failed" };
       }
       await refresh();
       return {};
@@ -126,7 +119,7 @@ export function AuthProvider({
   };
 
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    await fetch("/api/auth", { method: "POST" });
     setUser(null);
   };
 
