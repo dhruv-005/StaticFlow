@@ -1,64 +1,147 @@
 "use client";
 
-import { useState } from "react";
-import { User, CreditCard, Bell, AlertTriangle, Save, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
+
+type Tab = "profile" | "billing" | "notifications" | "danger";
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<"profile" | "billing" | "notifications" | "danger">("profile");
+  const { user } = useAuth();
+  const [tab, setTab] = useState<Tab>("profile");
   const [saved, setSaved] = useState(false);
-  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
+  const [stats, setStats] = useState<any>(null);
 
-  const tabs = [
-    { id: "profile" as const, label: "Profile", icon: User },
-    { id: "billing" as const, label: "Billing", icon: CreditCard },
-    { id: "notifications" as const, label: "Notifications", icon: Bell },
-    { id: "danger" as const, label: "Danger Zone", icon: AlertTriangle },
+  useEffect(() => {
+    fetch("/api/dashboard/stats")
+      .then((r) => r.ok ? r.json() : null)
+      .then(setStats)
+      .catch(() => {});
+  }, []);
+
+  const handleSave = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const tabs: { id: Tab; label: string; icon: string }[] = [
+    { id: "profile", label: "Profile", icon: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z" },
+    { id: "billing", label: "Usage", icon: "M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" },
+    { id: "notifications", label: "Notifications", icon: "M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" },
+    { id: "danger", label: "Danger Zone", icon: "M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" },
   ];
+
+  const s = stats?.stats;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text)" }}>Settings</h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Manage your account, billing, and workspace preferences.</p>
+        <h1 className="text-[clamp(1.3rem,3vw,1.75rem)] font-bold text-[var(--text)]">Settings</h1>
+        <p className="text-sm text-[var(--muted)] mt-0.5">Manage your account and workspace preferences.</p>
       </div>
 
-      <div className="flex gap-1.5 border-b pb-3" style={{ borderColor: "var(--border)" }}>
+      <div className="flex gap-1.5 border-b border-[var(--border)] pb-3 overflow-x-auto no-scrollbar">
         {tabs.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} className="catalyst-btn-ghost text-xs" style={tab === t.id ? { backgroundColor: "var(--surface-muted)", color: t.id === "danger" ? "var(--danger)" : "var(--text)" } : { color: t.id === "danger" ? "var(--danger)" : "var(--text-muted)" }}>
-            <t.icon className="h-3.5 w-3.5" /> {t.label}
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+              tab === t.id
+                ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                : t.id === "danger"
+                ? "text-red-400 hover:bg-red-500/10"
+                : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--border)]/50"
+            }`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d={t.icon} />
+            </svg>
+            {t.label}
           </button>
         ))}
       </div>
 
       {tab === "profile" && (
-        <div className="catalyst-card p-6 space-y-5">
-          <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Developer Profile</h3>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 space-y-5">
+          <h3 className="text-sm font-semibold text-[var(--text)]">Developer Profile</h3>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div><label className="mb-1.5 block text-xs font-medium" style={{ color: "var(--text-muted)" }}>Full Name</label><input type="text" defaultValue="Jane Doe" className="catalyst-input" /></div>
-            <div><label className="mb-1.5 block text-xs font-medium" style={{ color: "var(--text-muted)" }}>Email</label><input type="email" defaultValue="jane@company.com" className="catalyst-input" /></div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--muted)]">Full Name</label>
+              <input
+                type="text"
+                defaultValue={user?.name || ""}
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-2.5 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-colors"
+                style={{ fontSize: "16px" }}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--muted)]">Email</label>
+              <input
+                type="email"
+                defaultValue={user?.email || ""}
+                disabled
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-2.5 text-sm text-[var(--muted)] cursor-not-allowed"
+                style={{ fontSize: "16px" }}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--muted)]">Role</label>
+              <input
+                type="text"
+                defaultValue={user?.role || "USER"}
+                disabled
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-2.5 text-sm text-[var(--muted)] cursor-not-allowed"
+                style={{ fontSize: "16px" }}
+              />
+            </div>
           </div>
-          <button onClick={handleSave} className="catalyst-btn-primary text-xs">{saved ? <><Check className="h-3.5 w-3.5" /> Saved</> : <><Save className="h-3.5 w-3.5" /> Save Changes</>}</button>
+          <button
+            onClick={handleSave}
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--bg)] hover:opacity-90 transition-all"
+          >
+            {saved ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5" /></svg>
+                Saved
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+                Save Changes
+              </>
+            )}
+          </button>
         </div>
       )}
 
       {tab === "billing" && (
-        <div className="catalyst-card p-6 space-y-4">
-          <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Current Plan: Pro ($29/mo)</h3>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 space-y-4">
+          <h3 className="text-sm font-semibold text-[var(--text)]">Current Plan: Free</h3>
           <div className="grid gap-4 sm:grid-cols-3 text-xs">
-            <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}><p style={{ color: "var(--text-muted)" }}>Projects</p><p className="text-lg font-bold" style={{ color: "var(--text)" }}>12 / ∞</p></div>
-            <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}><p style={{ color: "var(--text-muted)" }}>API Calls</p><p className="text-lg font-bold" style={{ color: "var(--text)" }}>18.4K / 100K</p></div>
-            <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}><p style={{ color: "var(--text-muted)" }}>Team Seats</p><p className="text-lg font-bold" style={{ color: "var(--text)" }}>4 / 10</p></div>
+            <div className="rounded-lg border border-[var(--border)] p-3">
+              <p className="text-[var(--muted)]">Projects</p>
+              <p className="text-lg font-bold text-[var(--text)]">{s?.totalProjects ?? 0} / 3</p>
+            </div>
+            <div className="rounded-lg border border-[var(--border)] p-3">
+              <p className="text-[var(--muted)]">API Calls</p>
+              <p className="text-lg font-bold text-[var(--text)]">{s?.totalCalls ?? 0} / 1,000</p>
+            </div>
+            <div className="rounded-lg border border-[var(--border)] p-3">
+              <p className="text-[var(--muted)]">API Keys</p>
+              <p className="text-lg font-bold text-[var(--text)]">{s?.activeKeys ?? 0} / 10</p>
+            </div>
           </div>
         </div>
       )}
 
       {tab === "notifications" && (
-        <div className="catalyst-card p-6 space-y-4">
-          <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Notification Preferences</h3>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 space-y-4">
+          <h3 className="text-sm font-semibold text-[var(--text)]">Notification Preferences</h3>
           {["Security vulnerability alerts", "Deployment status updates", "API key expiry warnings", "Team activity notifications"].map((n) => (
-            <div key={n} className="flex items-center justify-between rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
-              <span className="text-sm" style={{ color: "var(--text)" }}>{n}</span>
-              <div className="h-5 w-9 rounded-full cursor-pointer" style={{ backgroundColor: "var(--accent)" }}><div className="h-4 w-4 rounded-full bg-white shadow-sm translate-x-4 translate-y-0.5" /></div>
+            <div key={n} className="flex items-center justify-between rounded-lg border border-[var(--border)] p-3">
+              <span className="text-sm text-[var(--text)]">{n}</span>
+              <div className="h-5 w-9 rounded-full cursor-pointer bg-[var(--accent)] relative">
+                <div className="h-4 w-4 rounded-full bg-white shadow-sm absolute top-0.5 right-0.5" />
+              </div>
             </div>
           ))}
         </div>
@@ -67,10 +150,12 @@ export default function SettingsPage() {
       {tab === "danger" && (
         <div className="space-y-4">
           {["Purge All Projects", "Close Account"].map((action) => (
-            <div key={action} className="rounded-xl border p-5" style={{ borderColor: "var(--danger)", backgroundColor: "rgba(198,40,40,0.04)" }}>
-              <h4 className="text-sm font-semibold" style={{ color: "var(--danger)" }}>{action}</h4>
-              <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>This action is irreversible.</p>
-              <button className="catalyst-btn-danger mt-3 text-xs">{action}</button>
+            <div key={action} className="rounded-xl border border-red-500/30 bg-red-500/5 p-5">
+              <h4 className="text-sm font-semibold text-red-400">{action}</h4>
+              <p className="mt-1 text-xs text-[var(--muted)]">This action is irreversible.</p>
+              <button className="mt-3 rounded-lg bg-red-500 px-4 py-2 text-xs font-semibold text-white hover:bg-red-600 transition-colors">
+                {action}
+              </button>
             </div>
           ))}
         </div>
