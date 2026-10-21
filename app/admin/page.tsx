@@ -4,29 +4,50 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 interface AdminStats {
-  totalUsers: number;
-  totalProjects: number;
-  totalKeys: number;
-  totalRequests: number;
-  activeUsers: number;
-  newUsersToday: number;
-  roleBreakdown: { role: string; count: number }[];
-  chart: { date: string; users: number; requests: number }[];
+  stats: {
+    totalUsers: number;
+    totalProjects: number;
+    totalKeys: number;
+    totalCalls: number;
+    totalAuditLogs: number;
+    activeUsers: number;
+    roles: Record<string, number>;
+  };
+  chartData: { date: string; calls: number }[];
+  recentUsers: {
+    id: string;
+    name: string | null;
+    email: string;
+    role: string;
+    createdAt: string;
+    _count: { projects: number; apiKeys: number };
+  }[];
+  recentLogs: {
+    id: string;
+    action: string;
+    details: string | null;
+    userName: string;
+    createdAt: string;
+    ipAddress: string | null;
+  }[];
 }
 
-export default function AdminOverview() {
-  const [stats, setStats] = useState<AdminStats | null>(null);
+export default function AdminPage() {
+  const [data, setData] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [tab, setTab] = useState<"overview" | "users" | "logs">("overview");
 
   useEffect(() => {
     const load = async () => {
       try {
         const res = await fetch("/api/admin/stats");
         if (res.ok) {
-          setStats(await res.json());
+          setData(await res.json());
+        } else if (res.status === 403) {
+          setError("Admin access required.");
         } else {
-          setError("Failed to load admin stats.");
+          setError("Failed to load admin data.");
         }
       } catch {
         setError("Network error.");
@@ -39,15 +60,12 @@ export default function AdminOverview() {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="space-y-6 animate-pulse">
+        <div className="h-8 w-48 rounded bg-[var(--border)]" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-28 rounded-xl bg-[var(--surface)] border border-[var(--border)]" />
           ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="h-64 rounded-xl bg-[var(--surface)] border border-[var(--border)]" />
-          <div className="h-64 rounded-xl bg-[var(--surface)] border border-[var(--border)]" />
         </div>
       </div>
     );
@@ -55,173 +73,268 @@ export default function AdminOverview() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-red-400 text-sm break-words">
+      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-red-400 text-sm">
         {error}
       </div>
     );
   }
 
-  const cards = [
-    {
-      label: "Total Users",
-      value: stats?.totalUsers ?? 0,
-      sub: `${stats?.newUsersToday ?? 0} joined today`,
-      color: "text-[var(--accent)]",
-    },
-    {
-      label: "Active Users",
-      value: stats?.activeUsers ?? 0,
-      sub: "Last 7 days",
-      color: "text-green-400",
-    },
-    {
-      label: "Projects",
-      value: stats?.totalProjects ?? 0,
-      sub: "Across all users",
-      color: "text-blue-400",
-    },
-    {
-      label: "API Requests",
-      value: stats?.totalRequests ?? 0,
-      sub: "All time",
-      color: "text-purple-400",
-    },
-  ];
+  const s = data?.stats;
+  const chart = data?.chartData || [];
+  const maxChart = Math.max(...chart.map((c) => c.calls), 1);
 
-  const maxReq = stats
-    ? Math.max(...stats.chart.map((c) => c.requests), 1)
-    : 1;
-  const maxUsers = stats
-    ? Math.max(...stats.chart.map((c) => c.users), 1)
-    : 1;
+  const cards = [
+    { label: "Total Users", value: s?.totalUsers ?? 0, color: "text-blue-400" },
+    { label: "Projects", value: s?.totalProjects ?? 0, color: "text-[var(--accent)]" },
+    { label: "API Keys", value: s?.totalKeys ?? 0, color: "text-purple-400" },
+    { label: "API Calls", value: s?.totalCalls ?? 0, color: "text-green-400" },
+    { label: "Active (7d)", value: s?.activeUsers ?? 0, color: "text-cyan-400" },
+    { label: "Audit Logs", value: s?.totalAuditLogs ?? 0, color: "text-orange-400" },
+  ];
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-[clamp(1.3rem,3vw,1.75rem)] font-bold text-[var(--text)]">
+              Admin Panel
+            </h1>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 font-bold uppercase">
+              Admin
+            </span>
+          </div>
+          <p className="text-sm text-[var(--muted)] mt-0.5">
+            Platform-wide statistics and management
+          </p>
+        </div>
+        <Link
+          href="/overview"
+          className="text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+        >
+          ← Back to Dashboard
+        </Link>
+      </div>
+
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         {cards.map((card) => (
           <div
             key={card.label}
-            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5"
+            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
           >
-            <p className="text-xs sm:text-sm text-[var(--muted)] mb-1 truncate">
-              {card.label}
-            </p>
-            <p className={`text-xl sm:text-2xl font-bold ${card.color} truncate`}>
-              {card.value.toLocaleString()}
-            </p>
-            <p className="text-[11px] sm:text-xs text-[var(--muted)] mt-1 truncate">
-              {card.sub}
-            </p>
+            <p className="text-xs text-[var(--muted)] mb-1">{card.label}</p>
+            <p className={`text-xl font-bold ${card.color}`}>{card.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {/* 30-day requests chart */}
+      {/* Role breakdown */}
+      {s?.roles && Object.keys(s.roles).length > 0 && (
+        <div className="flex gap-3 flex-wrap">
+          {Object.entries(s.roles).map(([role, count]) => (
+            <span
+              key={role}
+              className="text-xs px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
+            >
+              {role}: <strong>{(count as any)?._count ?? count}</strong>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex gap-1.5 border-b border-[var(--border)] pb-3">
+        {(["overview", "users", "logs"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-3 py-2 rounded-lg text-xs font-medium capitalize transition-colors ${
+              tab === t
+                ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--border)]/50"
+            }`}
+          >
+            {t === "overview" ? "30-Day Chart" : t === "users" ? "Recent Users" : "Audit Logs"}
+          </button>
+        ))}
+      </div>
+
+      {/* 30-day chart */}
+      {tab === "overview" && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6">
           <h2 className="text-sm font-semibold text-[var(--text)] mb-4">
-            Requests — Last 30 Days
+            API Calls — Last 30 Days
           </h2>
-          <div className="flex items-end gap-[2px] sm:gap-1 h-40 sm:h-48 overflow-hidden">
-            {stats?.chart.map((bar, i) => {
-              const pct = (bar.requests / maxReq) * 100;
-              return (
-                <div
-                  key={i}
-                  className="flex-1 min-w-[4px] rounded-t-sm bg-[var(--accent)]/70 hover:bg-[var(--accent)] transition-colors relative group"
-                  style={{ height: `${Math.max(pct, 2)}%` }}
-                  title={`${bar.date}: ${bar.requests} req`}
-                >
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:block bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1 text-[10px] text-[var(--text)] whitespace-nowrap z-10 shadow-lg">
-                    {bar.requests} req
+          <div className="flex items-end gap-0.5 sm:gap-1 h-40 sm:h-48 overflow-x-auto">
+            {chart.length > 0 ? (
+              chart.map((bar, i) => {
+                const pct = (bar.calls / maxChart) * 100;
+                const dayLabel = new Date(bar.date).toLocaleDateString("en", {
+                  month: "short",
+                  day: "numeric",
+                });
+                return (
+                  <div
+                    key={i}
+                    className="flex-1 min-w-[12px] flex flex-col items-center gap-1"
+                  >
+                    <span className="text-[9px] text-[var(--muted)] tabular-nums">
+                      {bar.calls || ""}
+                    </span>
+                    <div
+                      className="w-full relative rounded-t-sm overflow-hidden bg-[var(--border)]/40"
+                      style={{ height: "100%" }}
+                    >
+                      <div
+                        className="absolute bottom-0 left-0 right-0 rounded-t-sm bg-[var(--accent)] transition-all duration-500"
+                        style={{ height: `${Math.max(pct, 2)}%` }}
+                      />
+                    </div>
+                    {i % 5 === 0 && (
+                      <span className="text-[8px] text-[var(--muted)] truncate w-full text-center">
+                        {dayLabel}
+                      </span>
+                    )}
                   </div>
-                </div>
-              );
-            })}
-            {(!stats?.chart || stats.chart.length === 0) && (
+                );
+              })
+            ) : (
               <p className="text-sm text-[var(--muted)] w-full text-center py-8">
                 No data yet
               </p>
             )}
           </div>
         </div>
+      )}
 
-        {/* Role breakdown + quick actions */}
-        <div className="space-y-4">
-          {/* Role breakdown */}
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6">
-            <h2 className="text-sm font-semibold text-[var(--text)] mb-4">
-              Users by Role
-            </h2>
-            <div className="space-y-3">
-              {stats?.roleBreakdown.map((r) => {
-                const total = stats.totalUsers || 1;
-                const pct = Math.round((r.count / total) * 100);
-                return (
-                  <div key={r.role}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-[var(--text)] font-medium">
-                        {r.role}
-                      </span>
-                      <span className="text-xs text-[var(--muted)] tabular-nums">
-                        {r.count} ({pct}%)
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full bg-[var(--border)]/50 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-700 ${
-                          r.role === "ADMIN"
-                            ? "bg-[var(--accent)]"
-                            : "bg-blue-400"
+      {/* Recent users */}
+      {tab === "users" && (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)] text-left">
+                  <th className="px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
+                    Role
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider hidden sm:table-cell">
+                    Projects
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider hidden sm:table-cell">
+                    Keys
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider hidden md:table-cell">
+                    Joined
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.recentUsers || []).map((u) => (
+                  <tr
+                    key={u.id}
+                    className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--border)]/20 transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-[var(--text)]">
+                        {u.name || "Unnamed"}
+                      </p>
+                      <p className="text-xs text-[var(--muted)]">{u.email}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                          u.role === "ADMIN"
+                            ? "bg-red-500/15 text-red-400"
+                            : "bg-blue-500/15 text-blue-400"
                         }`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-              {(!stats?.roleBreakdown || stats.roleBreakdown.length === 0) && (
-                <p className="text-sm text-[var(--muted)] text-center py-4">
-                  No data
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Quick actions */}
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { href: "/admin/users", label: "Manage Users", icon: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" },
-              { href: "/admin/logs", label: "Audit Logs", icon: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" },
-              { href: "/admin/analytics", label: "Analytics", icon: "M18 20V10M12 20V4M6 20v-6" },
-              { href: "/admin/settings", label: "Settings", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" },
-            ].map((action) => (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4 hover:border-[var(--accent)]/40 transition-colors group flex items-center gap-3"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="var(--muted)"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  className="shrink-0 group-hover:stroke-[var(--accent)] transition-colors"
-                >
-                  <path d={action.icon} />
-                </svg>
-                <span className="text-xs sm:text-sm font-medium text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">
-                  {action.label}
-                </span>
-              </Link>
-            ))}
+                      >
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--muted)] hidden sm:table-cell">
+                      {u._count?.projects ?? 0}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--muted)] hidden sm:table-cell">
+                      {u._count?.apiKeys ?? 0}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--muted)] hidden md:table-cell">
+                      {new Date(u.createdAt).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+                {(!data?.recentUsers || data.recentUsers.length === 0) && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-sm text-[var(--muted)]">
+                      No users yet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Audit logs */}
+      {tab === "logs" && (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)] text-left">
+                  <th className="px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
+                    Action
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider hidden sm:table-cell">
+                    Details
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider hidden md:table-cell">
+                    Time
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.recentLogs || []).map((log) => (
+                  <tr
+                    key={log.id}
+                    className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--border)]/20 transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      <span className="text-xs font-bold font-mono text-[var(--accent)]">
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--text)]">
+                      {log.userName}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--muted)] hidden sm:table-cell max-w-xs truncate">
+                      {log.details || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--muted)] hidden md:table-cell whitespace-nowrap">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+                {(!data?.recentLogs || data.recentLogs.length === 0) && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-[var(--muted)]">
+                      No audit logs yet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

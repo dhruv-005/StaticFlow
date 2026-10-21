@@ -1,12 +1,12 @@
-import { PrismaClient } from "@prisma/client";
 import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/db/prisma";
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.NEXTAUTH_SECRET ||
+    process.env.JWT_SECRET ||
     "staticflow-secret-key-change-in-production-32chars!"
 );
 
@@ -15,7 +15,6 @@ export interface SessionUser {
   email: string;
   name: string | null;
   role: "USER" | "ADMIN";
-  avatar: string | null;
 }
 
 export interface Session {
@@ -23,9 +22,9 @@ export interface Session {
   expires: string;
 }
 
-export async function hashPassword(
-  password: string
-): Promise<string> {
+/* ── Password ── */
+
+export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12);
 }
 
@@ -36,15 +35,14 @@ export async function verifyPassword(
   return bcrypt.compare(password, hash);
 }
 
-export async function createToken(
-  user: SessionUser
-): Promise<string> {
+/* ── JWT ── */
+
+export async function createToken(user: SessionUser): Promise<string> {
   return new SignJWT({
     id: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
-    avatar: user.avatar,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -61,14 +59,14 @@ export async function verifyToken(
       id: payload.id as string,
       email: payload.email as string,
       name: (payload.name as string) || null,
-      role:
-        (payload.role as "USER" | "ADMIN") || "USER",
-      avatar: (payload.avatar as string) || null,
+      role: (payload.role as "USER" | "ADMIN") || "USER",
     };
   } catch {
     return null;
   }
 }
+
+/* ── Session ── */
 
 export async function getSession(): Promise<Session | null> {
   const cookieStore = cookies();
@@ -80,9 +78,7 @@ export async function getSession(): Promise<Session | null> {
 
   return {
     user,
-    expires: new Date(
-      Date.now() + 7 * 24 * 60 * 60 * 1000
-    ).toISOString(),
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
   };
 }
 
@@ -97,11 +93,6 @@ export async function getCurrentUser() {
       email: true,
       name: true,
       role: true,
-      avatar: true,
-      bio: true,
-      company: true,
-      verified: true,
-      lastLoginAt: true,
       createdAt: true,
       _count: {
         select: {
@@ -115,7 +106,9 @@ export async function getCurrentUser() {
   return user;
 }
 
-export async function requireAuth(): Promise<SessionUser> {
+/* ── Auth guards ── */
+
+export async function requireAuth(_req?: NextRequest): Promise<SessionUser> {
   const session = await getSession();
   if (!session) {
     throw new Error("UNAUTHORIZED");
@@ -123,7 +116,7 @@ export async function requireAuth(): Promise<SessionUser> {
   return session.user;
 }
 
-export async function requireAdmin(): Promise<SessionUser> {
+export async function requireAdmin(_req?: NextRequest): Promise<SessionUser> {
   const user = await requireAuth();
   if (user.role !== "ADMIN") {
     throw new Error("FORBIDDEN");
@@ -131,41 +124,73 @@ export async function requireAdmin(): Promise<SessionUser> {
   return user;
 }
 
-export async function createAuditLog(params: {
-  action: string;
-  entity: string;
-  entityId?: string;
-  details?: string;
-  userId?: string;
-  ip?: string;
-  userAgent?: string;
-}) {
+/* ── Audit log — accepts BOTH calling styles ── */
+
+export async function createAuditLog(
+  userIdOrParams: string | { action: string; entity: string; entityId?: string; details?: string; userId?: string; ip?: string; userAgent?: string },
+  action?: string,
+  details?: string,
+  _req?: NextRequest
+) {
   try {
-    await prisma.auditLog.create({ data: params });
+    if (typeof userIdOrParams === "string") {
+      // Called as: createAuditLog(userId, action, details, req)
+      await prisma.auditLog.create({
+        data: {
+          action: action || "UNKNOWN",
+          details: details || null,
+          userId: userIdOrParams,
+        },
+      });
+    } else {
+      // Called as: createAuditLog({ action, entity, ... })
+      await prisma.auditLog.create({
+        data: {
+          action: userIdOrParams.action,
+          details: userIdOrParams.details || null,
+          userId: userIdOrParams.userId || null,
+          ipAddress: userIdOrParams.ip || null,
+        },
+      });
+    }
   } catch (e) {
     console.error("Audit log failed:", e);
   }
 }
 
-export async function trackUsage(params: {
-  endpoint: string;
-  method: string;
-  status: number;
-  latency: number;
-  bytes?: number;
-  userId?: string;
-}) {
+/* ── Usage tracking — accepts BOTH calling styles ── */
+
+export async function trackUsage(
+  userIdOrParams: string | { endpoint: string; method: string; status: number; latency: number; userId?: string },
+  endpoint?: string,
+  method?: string,
+  status?: number,
+  latency?: number
+) {
   try {
-    await prisma.usageRecord.create({
-      data: {
-        endpoint: params.endpoint,
-        method: params.method,
-        status: params.status,
-        latency: params.latency,
-        bytes: params.bytes || 0,
-        userId: params.userId,
-      },
-    });
+    if (typeof userIdOrParams === "string") {
+      // Called as: trackUsage(userId, endpoint, method, status, latency)
+      await prisma.usageRecord.create({
+        data: {
+          endpoint: endpoint || "/unknown",
+          method: method || "GET",
+          status: status || 200,
+          latency: latency || 0,
+          userId: userIdOrParams,
+        },
+      });
+    } else {
+      // Called as: trackUsage({ endpoint, method, ... })
+      await prisma.usageRecord.create({
+        data: {
+          endpoint: userIdOrParams.endpoint,
+          method: userIdOrParams.method,
+          status: userIdOrParams.status,
+          latency: userIdOrParams.latency,
+          userId: userIdOrParams.userId || null,
+        },
+      });
+    }
   } catch (e) {
     console.error("Usage tracking failed:", e);
   }

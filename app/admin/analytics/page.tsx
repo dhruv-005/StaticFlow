@@ -24,7 +24,7 @@ export default function AnalyticsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/admin/stats");
+        const res = await fetch("/api/admin/analytics");
         if (res.ok) {
           setData(await res.json());
         } else {
