@@ -21,4 +21,4 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: CORS_ORIGINS
-        value: "https://staticflow-dhruv-005.vercel.app"
+        value: "https://staticflow.vercel.app"

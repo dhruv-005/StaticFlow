@@ -132,7 +132,7 @@ RULES:
         description: prompt,
         endpoint,
         code,
-        userId: session.userId,
+        userId: session.id,
       },
     });
 
@@ -140,19 +140,19 @@ RULES:
       data: {
         key: apiKeyValue,
         name: `${project.name} Key`,
-        userId: session.userId,
+        userId: session.id,
         projectId: project.id,
       },
     });
 
     await createAuditLog(
-      session.userId,
+      session.id,
       "GENERATE",
       `Generated API: ${project.name} (${recordCount} records)`,
       req
     );
 
-    await trackUsage(session.userId, "/api/generate", "POST", 200, 0);
+    await trackUsage(session.id, "/api/generate", "POST", 200, 0);
 
     return NextResponse.json({
       code,
