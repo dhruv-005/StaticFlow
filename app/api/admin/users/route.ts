@@ -4,42 +4,22 @@ import { db } from "@/lib/db/prisma";
 
 export async function GET(req: NextRequest) {
   try {
-    await requireAdmin();
+    await requireAdmin(req);
 
     const url = new URL(req.url);
-    const page = parseInt(
-      url.searchParams.get("page") || "1"
-    );
-    const limit = parseInt(
-      url.searchParams.get("limit") || "20"
-    );
-    const search =
-      url.searchParams.get("search") || "";
-    const role =
-      url.searchParams.get("role") || "";
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = parseInt(url.searchParams.get("limit") || "20");
+    const search = url.searchParams.get("search") || "";
+    const role = url.searchParams.get("role") || "";
 
     const where: any = {};
-
     if (search) {
       where.OR = [
-        {
-          name: {
-            contains: search,
-            mode: "insensitive",
-          },
-        },
-        {
-          email: {
-            contains: search,
-            mode: "insensitive",
-          },
-        },
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
       ];
     }
-
-    if (role) {
-      where.role = role;
-    }
+    if (role) where.role = role;
 
     const [users, total] = await Promise.all([
       db.user.findMany({
@@ -52,17 +32,8 @@ export async function GET(req: NextRequest) {
           name: true,
           email: true,
           role: true,
-          verified: true,
-          company: true,
-          lastLoginAt: true,
-          lastLoginIp: true,
           createdAt: true,
-          _count: {
-            select: {
-              projects: true,
-              apiKeys: true,
-            },
-          },
+          _count: { select: { projects: true, apiKeys: true } },
         },
       }),
       db.user.count({ where }),
@@ -78,21 +49,10 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-    if (error.message === "FORBIDDEN") {
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      );
-    }
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+    if (error.message === "UNAUTHORIZED")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error.message === "FORBIDDEN")
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, createAuditLog } from "@/lib/auth";
+import { requireAuth, createAuditLog } from "@/lib/auth";
 import { db } from "@/lib/db/prisma";
 
 export async function GET(
@@ -7,35 +7,22 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const session = await requireAuth(req);
 
     const project = await db.project.findFirst({
-      where: {
-        id: params.id,
-        userId: session.user.id,
-      },
+      where: { id: params.id, userId: session.id },
       include: { apiKeys: true },
     });
 
     if (!project) {
-      return NextResponse.json(
-        { error: "Not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     return NextResponse.json({ project });
-  } catch {
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
 
@@ -44,40 +31,27 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const session = await requireAuth(req);
 
     const deleted = await db.project.deleteMany({
-      where: {
-        id: params.id,
-        userId: session.user.id,
-      },
+      where: { id: params.id, userId: session.id },
     });
 
     if (deleted.count === 0) {
-      return NextResponse.json(
-        { error: "Not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await createAuditLog({
-      action: "PROJECT_DELETED",
-      entity: "project",
-      entityId: params.id,
-      userId: session.user.id,
-    });
+    await createAuditLog(
+      session.id,
+      "PROJECT_DELETED",
+      `Deleted project ${params.id}`,
+      req
+    );
 
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

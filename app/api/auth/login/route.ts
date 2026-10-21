@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db/prisma";
-import {
-  verifyPassword,
-  createToken,
-  createAuditLog,
-} from "@/lib/auth";
+import { createAuditLog } from "@/lib/auth";
+import bcrypt from "bcryptjs";
+import { SignJWT } from "jose";
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,9 +15,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await db.user.findUnique({
-      where: { email },
-    });
+    const user = await db.user.findUnique({ where: { email } });
 
     if (!user) {
       return NextResponse.json(
@@ -28,48 +24,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const valid = await verifyPassword(
-      password,
-      user.password
-    );
+    const valid = await bcrypt.compare(password, user.password);
 
     if (!valid) {
-      await createAuditLog({
-        action: "LOGIN_FAILED",
-        entity: "user",
-        entityId: user.id,
-        details: "Failed login for " + email,
-      });
+      await createAuditLog(
+        user.id,
+        "LOGIN_FAILED",
+        `Failed login attempt for ${email}`,
+        req
+      );
       return NextResponse.json(
         { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    // Update last login
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        lastLoginAt: new Date(),
-        lastLoginIp:
-          req.headers.get("x-forwarded-for") || "unknown",
-      },
-    });
+    const secret = new TextEncoder().encode(
+      process.env.JWT_SECRET || "staticflow-jwt-secret"
+    );
 
-    const token = await createToken({
+    const token = await new SignJWT({
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role as "USER" | "ADMIN",
-      avatar: user.avatar,
-    });
+      role: user.role,
+    })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("7d")
+      .sign(secret);
 
-    await createAuditLog({
-      action: "USER_LOGIN",
-      entity: "user",
-      entityId: user.id,
-      userId: user.id,
-    });
+    await createAuditLog(
+      user.id,
+      "USER_LOGIN",
+      `User ${email} logged in`,
+      req
+    );
 
     const response = NextResponse.json({
       user: {
@@ -91,9 +81,6 @@ export async function POST(req: NextRequest) {
     return response;
   } catch (error: any) {
     console.error("Login error:", error);
-    return NextResponse.json(
-      { error: "Login failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Login failed" }, { status: 500 });
   }
 }

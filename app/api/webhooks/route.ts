@@ -7,7 +7,6 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get("x-webhook-signature");
     const secret = process.env.WEBHOOK_SECRET || "staticflow-webhook-secret";
 
-    // Verify webhook signature
     if (signature) {
       const expected = crypto
         .createHmac("sha256", secret)

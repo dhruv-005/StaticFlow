@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  requireAdmin,
-  createAuditLog,
-} from "@/lib/auth";
+import { requireAdmin, createAuditLog } from "@/lib/auth";
 import { db } from "@/lib/db/prisma";
 
 export async function PATCH(
@@ -10,14 +7,10 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const admin = await requireAdmin();
-    const { role, verified } = await req.json();
+    const admin = await requireAdmin(req);
+    const { role } = await req.json();
 
-    // Prevent self-demotion
-    if (
-      params.id === admin.id &&
-      role === "USER"
-    ) {
+    if (params.id === admin.id && role === "USER") {
       return NextResponse.json(
         { error: "Cannot demote yourself" },
         { status: 400 }
@@ -26,46 +19,27 @@ export async function PATCH(
 
     const data: any = {};
     if (role !== undefined) data.role = role;
-    if (verified !== undefined)
-      data.verified = verified;
 
     const user = await db.user.update({
       where: { id: params.id },
       data,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-      },
+      select: { id: true, name: true, email: true, role: true },
     });
 
-    await createAuditLog({
-      action: "ADMIN_USER_UPDATED",
-      entity: "user",
-      entityId: params.id,
-      details: "Updated " + user.email,
-      userId: admin.id,
-    });
+    await createAuditLog(
+      admin.id,
+      "ADMIN_USER_UPDATED",
+      `Updated role for ${user.email}`,
+      req
+    );
 
     return NextResponse.json({ user });
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-    if (error.message === "FORBIDDEN") {
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      );
-    }
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+    if (error.message === "UNAUTHORIZED")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error.message === "FORBIDDEN")
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
 
@@ -74,9 +48,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdmin(req);
 
-    // Prevent self-deletion
     if (params.id === admin.id) {
       return NextResponse.json(
         { error: "Cannot delete yourself" },
@@ -89,35 +62,21 @@ export async function DELETE(
       select: { email: true },
     });
 
-    await db.user.delete({
-      where: { id: params.id },
-    });
+    await db.user.delete({ where: { id: params.id } });
 
-    await createAuditLog({
-      action: "ADMIN_USER_DELETED",
-      entity: "user",
-      entityId: params.id,
-      details: "Deleted " + user?.email,
-      userId: admin.id,
-    });
+    await createAuditLog(
+      admin.id,
+      "ADMIN_USER_DELETED",
+      `Deleted user ${user?.email}`,
+      req
+    );
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-    if (error.message === "FORBIDDEN") {
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      );
-    }
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+    if (error.message === "UNAUTHORIZED")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error.message === "FORBIDDEN")
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

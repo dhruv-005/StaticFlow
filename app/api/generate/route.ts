@@ -3,8 +3,6 @@ import { prisma } from "@/lib/db/prisma";
 import { requireAuth, createAuditLog, trackUsage } from "@/lib/auth";
 import crypto from "crypto";
 
-/* ── helpers ── */
-
 function parseRecordCount(prompt: string): number {
   const patterns = [
     /(\d+)\s*(?:records?|entries|items|rows|objects|documents|results|students|products|users|employees|books|posts)/i,
@@ -35,8 +33,6 @@ function slugify(text: string): string {
     .slice(0, 40) || "api";
 }
 
-/* ── POST /api/generate ── */
-
 export async function POST(req: NextRequest) {
   try {
     const session = await requireAuth(req);
@@ -45,30 +41,20 @@ export async function POST(req: NextRequest) {
     const prompt = (body.prompt || "").trim();
 
     if (!prompt) {
-      return NextResponse.json(
-        { error: "Prompt is required." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Prompt is required." }, { status: 400 });
     }
 
     if (prompt.length > 2000) {
-      return NextResponse.json(
-        { error: "Prompt must be under 2000 characters." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Prompt must be under 2000 characters." }, { status: 400 });
     }
 
     const recordCount = parseRecordCount(prompt);
     const groqKey = process.env.GROQ_API_KEY;
 
     if (!groqKey) {
-      return NextResponse.json(
-        { error: "AI service not configured." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "AI service not configured." }, { status: 500 });
     }
 
-    /* ── call Groq ── */
     const systemPrompt = `You are an expert API developer. Generate a complete, production-ready Python FastAPI endpoint based on the user's description.
 
 RULES:
@@ -106,23 +92,16 @@ RULES:
     if (!aiRes.ok) {
       const errText = await aiRes.text();
       console.error("Groq error:", errText);
-      return NextResponse.json(
-        { error: "AI generation failed. Please try again." },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: "AI generation failed. Please try again." }, { status: 502 });
     }
 
     const aiData = await aiRes.json();
-    const rawCode =
-      aiData.choices?.[0]?.message?.content || "No code generated.";
+    const rawCode = aiData.choices?.[0]?.message?.content || "No code generated.";
     const code = extractCode(rawCode);
 
-    /* ── save to DB ── */
     const slug = slugify(prompt);
     const projectId = crypto.randomUUID().slice(0, 8);
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BACKEND_URL ||
-      "https://staticflow.onrender.com";
+    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://staticflow.onrender.com";
     const endpoint = `${baseUrl}/api/v1/${slug}-${projectId}/data`;
     const apiKeyValue = `sf_live_${crypto.randomBytes(24).toString("hex")}`;
 
@@ -162,13 +141,9 @@ RULES:
       message: `API generated with ${recordCount} records. Your live endpoint is ready!`,
     });
   } catch (err: any) {
-    if (err.message === "UNAUTHORIZED") {
+    if (err.message === "UNAUTHORIZED")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
     console.error("Generate error:", err);
-    return NextResponse.json(
-      { error: "Internal server error." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }

@@ -1,16 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db/prisma";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    await requireAdmin();
+    await requireAdmin(req);
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const [
       totalUsers,
       totalProjects,
       totalKeys,
       totalAuditLogs,
+      totalCalls,
+      activeUserIds,
       recentUsers,
       recentLogs,
       usageByDay,
@@ -20,6 +25,12 @@ export async function GET() {
       db.project.count(),
       db.apiKey.count(),
       db.auditLog.count(),
+      db.usageRecord.count(),
+      db.usageRecord.findMany({
+        where: { createdAt: { gte: sevenDaysAgo } },
+        select: { userId: true },
+        distinct: ["userId"],
+      }),
       db.user.findMany({
         orderBy: { createdAt: "desc" },
         take: 10,
@@ -29,70 +40,29 @@ export async function GET() {
           email: true,
           role: true,
           createdAt: true,
-          lastLoginAt: true,
-          _count: {
-            select: {
-              projects: true,
-              apiKeys: true,
-            },
-          },
+          _count: { select: { projects: true, apiKeys: true } },
         },
       }),
       db.auditLog.findMany({
         orderBy: { createdAt: "desc" },
         take: 20,
         include: {
-          user: {
-            select: { name: true, email: true },
-          },
+          user: { select: { name: true, email: true } },
         },
       }),
-      db.usageRecord.groupBy({
-        by: ["createdAt"],
-        where: {
-          createdAt: {
-            gte: new Date(
-              Date.now() - 30 * 24 * 60 * 60 * 1000
-            ),
-          },
-        },
-        _count: true,
+      db.usageRecord.findMany({
+        where: { createdAt: { gte: thirtyDaysAgo } },
+        select: { createdAt: true },
       }),
-      db.user.groupBy({
-        by: ["role"],
-        _count: true,
-      }),
+      db.user.groupBy({ by: ["role"], _count: true }),
     ]);
 
-    const totalCalls = await db.apiKey.aggregate({
-      _sum: { calls: true },
-    });
-
-    const activeUsers = await db.user.count({
-      where: {
-        lastLoginAt: {
-          gte: new Date(
-            Date.now() - 7 * 24 * 60 * 60 * 1000
-          ),
-        },
-      },
-    });
-
-    // Build 30-day chart
-    const chartData: {
-      date: string;
-      calls: number;
-    }[] = [];
-
+    const chartData: { date: string; calls: number }[] = [];
     for (let i = 29; i >= 0; i--) {
-      const d = new Date(
-        Date.now() - i * 24 * 60 * 60 * 1000
-      );
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
       const dateStr = d.toISOString().split("T")[0];
       const count = usageByDay.filter(
-        (r) =>
-          r.createdAt.toISOString().split("T")[0] ===
-          dateStr
+        (r) => r.createdAt.toISOString().split("T")[0] === dateStr
       ).length;
       chartData.push({ date: dateStr, calls: count });
     }
@@ -102,14 +72,11 @@ export async function GET() {
         totalUsers,
         totalProjects,
         totalKeys,
-        totalCalls: totalCalls._sum.calls || 0,
+        totalCalls,
         totalAuditLogs,
-        activeUsers,
+        activeUsers: activeUserIds.length,
         roles: usersByRole.reduce(
-          (a: any, r: any) => ({
-            ...a,
-            [r.role]: r._count,
-          }),
+          (a: any, r: any) => ({ ...a, [r.role]: r._count }),
           {}
         ),
       },
@@ -118,32 +85,17 @@ export async function GET() {
       recentLogs: recentLogs.map((l: any) => ({
         id: l.id,
         action: l.action,
-        entity: l.entity,
         details: l.details,
-        userName:
-          l.user?.name ||
-          l.user?.email ||
-          "System",
+        userName: l.user?.name || l.user?.email || "System",
         createdAt: l.createdAt,
-        ip: l.ip,
+        ipAddress: l.ipAddress,
       })),
     });
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-    if (error.message === "FORBIDDEN") {
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      );
-    }
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+    if (error.message === "UNAUTHORIZED")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error.message === "FORBIDDEN")
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

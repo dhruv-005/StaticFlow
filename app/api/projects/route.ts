@@ -1,81 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, createAuditLog } from "@/lib/auth";
+import { requireAuth, createAuditLog } from "@/lib/auth";
 import { db } from "@/lib/db/prisma";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const session = await requireAuth(req);
 
     const projects = await db.project.findMany({
-      where: { userId: session.user.id },
+      where: { userId: session.id },
       orderBy: { updatedAt: "desc" },
       include: {
         apiKeys: {
-          select: {
-            id: true,
-            key: true,
-            name: true,
-            status: true,
-            calls: true,
-          },
+          select: { id: true, key: true, name: true, status: true },
         },
       },
     });
 
     return NextResponse.json({ projects });
-  } catch {
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
+    const session = await requireAuth(req);
     const body = await req.json();
 
     const project = await db.project.create({
       data: {
-        name: body.name || body.entity + " API",
-        description: body.description,
-        entity: body.entity,
-        endpoint: body.endpoint,
-        recordCount: body.recordCount || 100,
-        code: body.code,
-        userId: session.user.id,
+        name: body.name || "New API",
+        description: body.description || "",
+        endpoint: body.endpoint || "",
+        code: body.code || "",
+        userId: session.id,
       },
     });
 
-    await createAuditLog({
-      action: "PROJECT_CREATED",
-      entity: "project",
-      entityId: project.id,
-      userId: session.user.id,
-    });
+    await createAuditLog(
+      session.id,
+      "PROJECT_CREATED",
+      `Created project: ${project.name}`,
+      req
+    );
 
-    return NextResponse.json(
-      { project },
-      { status: 201 }
-    );
-  } catch {
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ project }, { status: 201 });
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

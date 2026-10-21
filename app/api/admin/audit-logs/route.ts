@@ -4,17 +4,12 @@ import { db } from "@/lib/db/prisma";
 
 export async function GET(req: NextRequest) {
   try {
-    await requireAdmin();
+    await requireAdmin(req);
 
     const url = new URL(req.url);
-    const page = parseInt(
-      url.searchParams.get("page") || "1"
-    );
-    const limit = parseInt(
-      url.searchParams.get("limit") || "50"
-    );
-    const action =
-      url.searchParams.get("action") || "";
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = parseInt(url.searchParams.get("limit") || "50");
+    const action = url.searchParams.get("action") || "";
 
     const where: any = {};
     if (action) where.action = action;
@@ -27,11 +22,7 @@ export async function GET(req: NextRequest) {
         take: limit,
         include: {
           user: {
-            select: {
-              name: true,
-              email: true,
-              role: true,
-            },
+            select: { name: true, email: true, role: true },
           },
         },
       }),
@@ -48,21 +39,10 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-    if (error.message === "FORBIDDEN") {
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      );
-    }
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+    if (error.message === "UNAUTHORIZED")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error.message === "FORBIDDEN")
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

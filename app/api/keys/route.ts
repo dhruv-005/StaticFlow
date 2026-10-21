@@ -1,90 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, createAuditLog } from "@/lib/auth";
+import { requireAuth, createAuditLog } from "@/lib/auth";
 import { db } from "@/lib/db/prisma";
 import crypto from "crypto";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const session = await requireAuth(req);
 
     const keys = await db.apiKey.findMany({
-      where: { userId: session.user.id },
+      where: { userId: session.id },
       orderBy: { createdAt: "desc" },
       include: {
-        project: {
-          select: { id: true, name: true },
-        },
+        project: { select: { id: true, name: true } },
       },
     });
 
     return NextResponse.json({ keys });
-  } catch {
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const { name, projectId, rateLimit } =
-      await req.json();
+    const session = await requireAuth(req);
+    const { name, projectId } = await req.json();
 
     const keyCount = await db.apiKey.count({
-      where: { userId: session.user.id },
+      where: { userId: session.id },
     });
 
     if (keyCount >= 10) {
-      return NextResponse.json(
-        { error: "Maximum 10 API keys" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Maximum 10 API keys" }, { status: 400 });
     }
 
-    const key =
-      "sf_live_" +
-      crypto.randomBytes(24).toString("hex");
+    const keyValue = "sf_live_" + crypto.randomBytes(24).toString("hex");
 
     const apiKey = await db.apiKey.create({
       data: {
-        key,
+        key: keyValue,
         name: name || "Key " + (keyCount + 1),
-        userId: session.user.id,
+        userId: session.id,
         projectId: projectId || null,
-        rateLimit: rateLimit || 1000,
       },
     });
 
-    await createAuditLog({
-      action: "APIKEY_CREATED",
-      entity: "api_key",
-      entityId: apiKey.id,
-      userId: session.user.id,
-    });
+    await createAuditLog(
+      session.id,
+      "APIKEY_CREATED",
+      `Created API key: ${apiKey.name}`,
+      req
+    );
 
-    return NextResponse.json(
-      { apiKey },
-      { status: 201 }
-    );
-  } catch {
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ apiKey }, { status: 201 });
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

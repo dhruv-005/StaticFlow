@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, createAuditLog } from "@/lib/auth";
+import { requireAuth, createAuditLog } from "@/lib/auth";
 import { db } from "@/lib/db/prisma";
 
 export async function DELETE(
@@ -7,33 +7,23 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const session = await requireAuth(req);
 
     await db.apiKey.deleteMany({
-      where: {
-        id: params.id,
-        userId: session.user.id,
-      },
+      where: { id: params.id, userId: session.id },
     });
 
-    await createAuditLog({
-      action: "APIKEY_REVOKED",
-      entity: "api_key",
-      entityId: params.id,
-      userId: session.user.id,
-    });
+    await createAuditLog(
+      session.id,
+      "APIKEY_REVOKED",
+      `Revoked API key ${params.id}`,
+      req
+    );
 
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
