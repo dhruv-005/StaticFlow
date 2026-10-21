@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/db/prisma";
 import { requireAuth, createAuditLog, trackUsage } from "@/lib/auth";
 import crypto from "crypto";
 

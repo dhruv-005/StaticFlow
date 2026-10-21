@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, createAuditLog } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 import crypto from "crypto";
 
 export async function GET() {

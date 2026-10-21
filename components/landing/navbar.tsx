@@ -12,7 +12,7 @@ const LINKS = [
   { href: "/blog", label: "Blog" },
 ];
 
-export default function Navbar() {
+export function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();

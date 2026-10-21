@@ -1,3 +1,4 @@
+export { prisma } from "./db/prisma";
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {

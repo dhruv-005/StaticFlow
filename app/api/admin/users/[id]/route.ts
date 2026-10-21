@@ -3,7 +3,7 @@ import {
   requireAdmin,
   createAuditLog,
 } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 
 export async function PATCH(
   req: NextRequest,
