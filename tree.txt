@@ -1,0 +1,615 @@
+.
+├── app
+│   ├── admin
+│   │   ├── analytics
+│   │   │   └── page.tsx
+│   │   ├── audit
+│   │   ├── layout.tsx
+│   │   ├── logs
+│   │   │   └── page.tsx
+│   │   ├── page.tsx
+│   │   ├── projects
+│   │   │   └── page.tsx
+│   │   ├── settings
+│   │   │   └── page.tsx
+│   │   └── users
+│   │       └── page.tsx
+│   ├── api
+│   │   ├── admin
+│   │   │   ├── audit-logs
+│   │   │   │   └── route.ts
+│   │   │   ├── settings
+│   │   │   │   └── route.ts
+│   │   │   ├── stats
+│   │   │   │   └── route.ts
+│   │   │   └── users
+│   │   │       ├── [id]
+│   │   │       │   └── route.ts
+│   │   │       └── route.ts
+│   │   ├── ai
+│   │   │   └── chat
+│   │   │       └── route.ts
+│   │   ├── auth
+│   │   │   ├── login
+│   │   │   │   └── route.ts
+│   │   │   ├── logout
+│   │   │   ├── me
+│   │   │   │   └── route.ts
+│   │   │   ├── register
+│   │   │   └── route.ts
+│   │   ├── dashboard
+│   │   │   └── stats
+│   │   │       └── route.ts
+│   │   ├── generate
+│   │   │   └── route.ts
+│   │   ├── keys
+│   │   │   ├── [id]
+│   │   │   │   └── route.ts
+│   │   │   └── route.ts
+│   │   ├── marketplace
+│   │   │   └── route.ts
+│   │   ├── notifications
+│   │   │   └── route.ts
+│   │   ├── projects
+│   │   │   ├── [id]
+│   │   │   │   └── route.ts
+│   │   │   └── route.ts
+│   │   └── webhooks
+│   │       └── route.ts
+│   ├── (auth)
+│   │   ├── forgot-password
+│   │   │   └── page.tsx
+│   │   ├── layout.tsx
+│   │   ├── login
+│   │   │   └── page.tsx
+│   │   ├── register
+│   │   │   └── page.tsx
+│   │   ├── reset-password
+│   │   │   └── page.tsx
+│   │   └── verify-email
+│   │       └── page.tsx
+│   ├── (dashboard)
+│   │   ├── builder
+│   │   │   └── page.tsx
+│   │   ├── keys
+│   │   │   └── page.tsx
+│   │   ├── layout.tsx
+│   │   ├── overview
+│   │   │   └── page.tsx
+│   │   ├── projects
+│   │   │   └── page.tsx
+│   │   ├── settings
+│   │   │   └── page.tsx
+│   │   └── team
+│   │       └── page.tsx
+│   ├── error.tsx
+│   ├── globals.css
+│   ├── home
+│   │   └── page.tsx
+│   ├── layout.tsx
+│   ├── loading.tsx
+│   ├── (marketing)
+│   │   ├── about
+│   │   │   └── page.tsx
+│   │   ├── blog
+│   │   │   ├── page.tsx
+│   │   │   └── [slug]
+│   │   │       └── page.tsx
+│   │   ├── demo
+│   │   │   └── page.tsx
+│   │   ├── features
+│   │   │   └── page.tsx
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   └── pricing
+│   │       └── page.tsx
+│   ├── not-found.tsx
+│   ├── robots.ts
+│   └── sitemap.ts
+├── backend
+│   ├── app
+│   │   ├── api
+│   │   │   ├── __init__.py
+│   │   │   └── v1
+│   │   │       ├── deploy.py
+│   │   │       ├── docs.py
+│   │   │       ├── generate.py
+│   │   │       ├── health.py
+│   │   │       ├── __init__.py
+│   │   │       ├── keys.py
+│   │   │       ├── marketplace.py
+│   │   │       ├── monitoring.py
+│   │   │       ├── performance.py
+│   │   │       ├── router.py
+│   │   │       └── security.py
+│   │   ├── core
+│   │   │   ├── config.py
+│   │   │   ├── cors.py
+│   │   │   ├── dependencies.py
+│   │   │   ├── exceptions.py
+│   │   │   ├── __init__.py
+│   │   │   ├── logging.py
+│   │   │   └── security.py
+│   │   ├── __init__.py
+│   │   ├── models
+│   │   │   ├── api_key.py
+│   │   │   ├── chat_history.py
+│   │   │   ├── deployment.py
+│   │   │   ├── endpoint.py
+│   │   │   ├── __init__.py
+│   │   │   ├── performance_test.py
+│   │   │   ├── project.py
+│   │   │   ├── security_scan.py
+│   │   │   └── user.py
+│   │   ├── schemas
+│   │   │   ├── deploy.py
+│   │   │   ├── generate.py
+│   │   │   ├── __init__.py
+│   │   │   ├── performance.py
+│   │   │   ├── project.py
+│   │   │   ├── security.py
+│   │   │   └── user.py
+│   │   ├── services
+│   │   │   ├── ai
+│   │   │   │   ├── api_cloner.py
+│   │   │   │   ├── api_doctor.py
+│   │   │   │   ├── bug_fixer.py
+│   │   │   │   ├── code_generator.py
+│   │   │   │   ├── doc_generator.py
+│   │   │   │   ├── endpoint_planner.py
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── intent_parser.py
+│   │   │   │   ├── performance_analyzer.py
+│   │   │   │   ├── provider_router.py
+│   │   │   │   ├── schema_designer.py
+│   │   │   │   ├── security_analyzer.py
+│   │   │   │   ├── test_generator.py
+│   │   │   │   └── voice_processor.py
+│   │   │   ├── deploy
+│   │   │   │   ├── cicd_generator.py
+│   │   │   │   ├── docker_builder.py
+│   │   │   │   ├── flyio_deployer.py
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── render_deployer.py
+│   │   │   │   ├── ssl_manager.py
+│   │   │   │   └── vercel_deployer.py
+│   │   │   ├── docs
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── openapi_generator.py
+│   │   │   │   ├── playground_builder.py
+│   │   │   │   ├── postman_exporter.py
+│   │   │   │   └── sdk_generator.py
+│   │   │   ├── __init__.py
+│   │   │   ├── keys
+│   │   │   │   ├── encryption.py
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── key_generator.py
+│   │   │   │   ├── key_rotator.py
+│   │   │   │   └── vault_manager.py
+│   │   │   ├── performance
+│   │   │   │   ├── bottleneck_detector.py
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── load_tester.py
+│   │   │   │   ├── soak_tester.py
+│   │   │   │   ├── spike_tester.py
+│   │   │   │   └── stress_tester.py
+│   │   │   └── security
+│   │   │       ├── auth_tester.py
+│   │   │       ├── cors_tester.py
+│   │   │       ├── dependency_scanner.py
+│   │   │       ├── __init__.py
+│   │   │       ├── jwt_tester.py
+│   │   │       ├── nuclei_runner.py
+│   │   │       ├── owasp_scanner.py
+│   │   │       ├── rate_limit_tester.py
+│   │   │       ├── report_generator.py
+│   │   │       ├── semgrep_runner.py
+│   │   │       └── sqlmap_runner.py
+│   │   ├── utils
+│   │   │   ├── docker_utils.py
+│   │   │   ├── formatters.py
+│   │   │   ├── git_utils.py
+│   │   │   ├── helpers.py
+│   │   │   ├── __init__.py
+│   │   │   └── validators.py
+│   │   └── workers
+│   │       ├── deploy_worker.py
+│   │       ├── __init__.py
+│   │       ├── monitor_worker.py
+│   │       ├── scan_worker.py
+│   │       └── test_worker.py
+│   ├── Dockerfile
+│   ├── main.py
+│   ├── pyproject.toml
+│   ├── README.md
+│   ├── render_build.sh
+│   ├── requirements.txt
+│   ├── scripts
+│   │   ├── run_scanners.sh
+│   │   ├── seed_db.py
+│   │   └── setup_models.sh
+│   └── tests
+│       ├── conftest.py
+│       ├── __init__.py
+│       ├── test_deploy.py
+│       ├── test_generate.py
+│       ├── test_keys.py
+│       ├── test_performance.py
+│       └── test_security.py
+├── components
+│   ├── auth
+│   │   ├── forgot-password-form.tsx
+│   │   ├── login-form.tsx
+│   │   ├── oauth-buttons.tsx
+│   │   ├── register-form.tsx
+│   │   └── verify-email-card.tsx
+│   ├── builder
+│   │   ├── chat-message.tsx
+│   │   ├── chat-panel.tsx
+│   │   ├── code-editor.tsx
+│   │   ├── endpoint-list.tsx
+│   │   ├── file-tree.tsx
+│   │   ├── language-selector.tsx
+│   │   ├── project-config.tsx
+│   │   ├── prompt-input.tsx
+│   │   ├── schema-preview.tsx
+│   │   ├── streaming-code.tsx
+│   │   ├── suggestion-chips.tsx
+│   │   ├── tab-bar.tsx
+│   │   ├── terminal-output.tsx
+│   │   ├── toolbar.tsx
+│   │   └── voice-button.tsx
+│   ├── dashboard
+│   │   ├── command-palette.tsx
+│   │   ├── notification-bell.tsx
+│   │   ├── performance-chart.tsx
+│   │   ├── quick-actions.tsx
+│   │   ├── recent-projects.tsx
+│   │   ├── search-bar.tsx
+│   │   ├── security-widget.tsx
+│   │   ├── sidebar.tsx
+│   │   ├── stats-cards.tsx
+│   │   ├── theme-toggle.tsx
+│   │   ├── topbar.tsx
+│   │   └── user-menu.tsx
+│   ├── deploy
+│   │   ├── cicd-config.tsx
+│   │   ├── deploy-button.tsx
+│   │   ├── deploy-history.tsx
+│   │   ├── deploy-logs.tsx
+│   │   ├── domain-setup.tsx
+│   │   ├── env-config.tsx
+│   │   ├── platform-selector.tsx
+│   │   ├── rollback-button.tsx
+│   │   └── ssl-status.tsx
+│   ├── docs
+│   │   ├── api-playground.tsx
+│   │   ├── code-examples.tsx
+│   │   ├── endpoint-docs.tsx
+│   │   ├── openapi-viewer.tsx
+│   │   ├── postman-export.tsx
+│   │   ├── sdk-generator.tsx
+│   │   └── search-docs.tsx
+│   ├── keys
+│   │   ├── ip-whitelist.tsx
+│   │   ├── key-details.tsx
+│   │   ├── key-generator.tsx
+│   │   ├── key-list.tsx
+│   │   ├── permission-scope.tsx
+│   │   ├── rotation-schedule.tsx
+│   │   ├── secret-vault.tsx
+│   │   └── usage-analytics.tsx
+│   ├── landing
+│   │   ├── catalyst-cta.tsx
+│   │   ├── cta-section.tsx
+│   │   ├── faq.tsx
+│   │   ├── features-grid.tsx
+│   │   ├── footer.tsx
+│   │   ├── hero.tsx
+│   │   ├── hero-video.tsx
+│   │   ├── home-view.tsx
+│   │   ├── how-it-works.tsx
+│   │   ├── live-demo.tsx
+│   │   ├── navbar.tsx
+│   │   ├── newsletter.tsx
+│   │   ├── particle-bg.tsx
+│   │   ├── pricing-cards.tsx
+│   │   ├── security-showcase.tsx
+│   │   ├── stats-bar.tsx
+│   │   ├── testimonials.tsx
+│   │   ├── trust-bar.tsx
+│   │   ├── typing-animation.tsx
+│   │   └── workflow-section.tsx
+│   ├── marketplace
+│   │   ├── category-filter.tsx
+│   │   ├── publish-form.tsx
+│   │   ├── rating-stars.tsx
+│   │   ├── search-templates.tsx
+│   │   ├── template-card.tsx
+│   │   ├── template-grid.tsx
+│   │   └── template-preview.tsx
+│   ├── monitoring
+│   │   ├── alert-config.tsx
+│   │   ├── anomaly-detector.tsx
+│   │   ├── error-rate-chart.tsx
+│   │   ├── geo-latency-map.tsx
+│   │   ├── log-viewer.tsx
+│   │   ├── request-volume.tsx
+│   │   ├── response-time-chart.tsx
+│   │   ├── status-page.tsx
+│   │   └── uptime-tracker.tsx
+│   ├── performance
+│   │   ├── bottleneck-panel.tsx
+│   │   ├── comparison-view.tsx
+│   │   ├── error-rate.tsx
+│   │   ├── load-chart.tsx
+│   │   ├── response-time.tsx
+│   │   ├── test-config.tsx
+│   │   ├── test-history.tsx
+│   │   └── throughput-graph.tsx
+│   ├── security
+│   │   ├── fix-suggestions.tsx
+│   │   ├── owasp-chart.tsx
+│   │   ├── report-export.tsx
+│   │   ├── scan-config.tsx
+│   │   ├── scan-history.tsx
+│   │   ├── scan-progress.tsx
+│   │   ├── scan-results.tsx
+│   │   ├── security-score.tsx
+│   │   └── vulnerability-card.tsx
+│   ├── settings
+│   │   ├── api-settings.tsx
+│   │   ├── billing-card.tsx
+│   │   ├── danger-zone.tsx
+│   │   ├── notification-prefs.tsx
+│   │   └── profile-form.tsx
+│   ├── shared
+│   │   ├── animated-counter.tsx
+│   │   ├── catalyst-logo.tsx
+│   │   ├── confirm-dialog.tsx
+│   │   ├── copy-button.tsx
+│   │   ├── data-table.tsx
+│   │   ├── empty-state.tsx
+│   │   ├── error-boundary.tsx
+│   │   ├── file-upload.tsx
+│   │   ├── glass-card.tsx
+│   │   ├── gradient-text.tsx
+│   │   ├── loading-spinner.tsx
+│   │   ├── neon-button.tsx
+│   │   ├── pagination.tsx
+│   │   ├── particle-canvas.tsx
+│   │   ├── theme-provider.tsx
+│   │   └── theme-toggle.tsx
+│   ├── team
+│   │   ├── activity-feed.tsx
+│   │   ├── code-review.tsx
+│   │   ├── invite-form.tsx
+│   │   ├── member-list.tsx
+│   │   └── role-manager.tsx
+│   ├── theme-provider.tsx
+│   └── ui
+│       ├── accordion.tsx
+│       ├── alert.tsx
+│       ├── avatar.tsx
+│       ├── badge.tsx
+│       ├── button.tsx
+│       ├── card.tsx
+│       ├── checkbox.tsx
+│       ├── command.tsx
+│       ├── dialog.tsx
+│       ├── dropdown-menu.tsx
+│       ├── input.tsx
+│       ├── label.tsx
+│       ├── popover.tsx
+│       ├── progress.tsx
+│       ├── radio-group.tsx
+│       ├── scroll-area.tsx
+│       ├── select.tsx
+│       ├── separator.tsx
+│       ├── sheet.tsx
+│       ├── skeleton.tsx
+│       ├── slider.tsx
+│       ├── sonner.tsx
+│       ├── switch.tsx
+│       ├── table.tsx
+│       ├── tabs.tsx
+│       ├── textarea.tsx
+│       ├── toaster.tsx
+│       ├── toast.tsx
+│       └── tooltip.tsx
+├── components.json
+├── CONTRIBUTING.md
+├── deploy_fix.py
+├── docker
+│   ├── Dockerfile.backend
+│   ├── Dockerfile.frontend
+│   ├── Dockerfile.security
+│   ├── nginx.conf
+│   └── redis.conf
+├── docker-compose.dev.yml
+├── docker-compose.yml
+├── docs
+│   ├── API_REFERENCE.md
+│   ├── ARCHITECTURE.md
+│   ├── CHANGELOG.md
+│   ├── CONTRIBUTING.md
+│   ├── DEPLOYMENT.md
+│   ├── images
+│   ├── ROADMAP.md
+│   └── SECURITY.md
+├── eslint.config.mjs
+├── fix_and_build.py
+├── fix_backend.py
+├── fix-build.js
+├── fix_project.py
+├── fix_routes.py
+├── fix.sh
+├── hooks
+│   ├── use-ai-chat.ts
+│   ├── use-api-builder.ts
+│   ├── use-command-palette.ts
+│   ├── use-debounce.ts
+│   ├── use-deploy.ts
+│   ├── use-keys.ts
+│   ├── use-local-storage.ts
+│   ├── use-monitoring.ts
+│   ├── use-performance-test.ts
+│   ├── use-realtime.ts
+│   ├── use-security-scan.ts
+│   ├── use-streaming.ts
+│   ├── use-theme.ts
+│   ├── use-toast.ts
+│   └── use-voice.ts
+├── lib
+│   ├── ai
+│   │   ├── fallback-router.ts
+│   │   ├── gemini.ts
+│   │   ├── groq.ts
+│   │   ├── huggingface.ts
+│   │   ├── ollama.ts
+│   │   ├── openrouter.ts
+│   │   ├── prompts.ts
+│   │   └── providers.ts
+│   ├── api
+│   │   ├── client.ts
+│   │   ├── deploy.ts
+│   │   ├── keys.ts
+│   │   ├── monitoring.ts
+│   │   ├── performance.ts
+│   │   ├── projects.ts
+│   │   └── security.ts
+│   ├── auth
+│   │   ├── jwt.ts
+│   │   ├── options.ts
+│   │   └── rbac.ts
+│   ├── auth-context.tsx
+│   ├── auth.ts
+│   ├── constants.ts
+│   ├── db
+│   │   ├── prisma.ts
+│   │   └── supabase.ts
+│   ├── db.ts
+│   ├── deploy
+│   │   ├── docker.ts
+│   │   ├── flyio.ts
+│   │   ├── render.ts
+│   │   └── vercel.ts
+│   ├── security
+│   │   ├── encryption.ts
+│   │   ├── owasp.ts
+│   │   └── scanner.ts
+│   ├── utils.ts
+│   └── validations.ts
+├── LICENSE
+├── main.py
+├── Makefile
+├── middleware.ts
+├── next.config.mjs
+├── next.config.ts
+├── package.json
+├── package-lock.json
+├── packages
+│   ├── cli
+│   │   ├── bin
+│   │   │   └── staticflow.ts
+│   │   ├── package.json
+│   │   ├── package-lock.json
+│   │   └── src
+│   │       └── commands
+│   │           ├── deploy.ts
+│   │           ├── generate.ts
+│   │           ├── login.ts
+│   │           └── scan.ts
+│   └── sdk
+│       ├── package.json
+│       ├── README.md
+│       ├── src
+│       │   ├── auth.ts
+│       │   ├── client.ts
+│       │   ├── errors.ts
+│       │   ├── index.ts
+│       │   └── realtime.ts
+│       └── tsconfig.json
+├── postcss.config.js
+├── prisma
+│   ├── migrations
+│   ├── schema.prisma
+│   └── seed.ts
+├── public
+│   ├── favicon.ico
+│   ├── file.svg
+│   ├── fonts
+│   ├── globe.svg
+│   ├── icons
+│   ├── images
+│   ├── logo-dark.svg
+│   ├── logo.svg
+│   ├── next.svg
+│   ├── og-image.png
+│   ├── templates
+│   │   ├── chat.json
+│   │   ├── ecommerce.json
+│   │   ├── healthcare.json
+│   │   └── saas.json
+│   ├── vercel.svg
+│   ├── videos
+│   └── window.svg
+├── README.md
+├── render.yaml
+├── requirements.txt
+├── scan_errors.sh
+├── security-engine
+│   ├── configs
+│   │   ├── nuclei-config.yaml
+│   │   ├── semgrep-rules.yaml
+│   │   └── zap-config.yaml
+│   ├── docker-compose.yml
+│   ├── Dockerfile
+│   ├── payloads
+│   │   ├── lfi.txt
+│   │   ├── rce.txt
+│   │   ├── sqli.txt
+│   │   ├── ssrf.txt
+│   │   └── xss.txt
+│   ├── README.md
+│   ├── reports
+│   └── scanners
+│       ├── bandit-scan.sh
+│       ├── nikto-scan.sh
+│       ├── nuclei-scan.sh
+│       ├── owasp-zap.sh
+│       ├── semgrep-scan.sh
+│       ├── sqlmap-scan.sh
+│       └── trivy-scan.sh
+├── stores
+│   ├── auth-store.ts
+│   ├── builder-store.ts
+│   ├── chat-store.ts
+│   ├── deploy-store.ts
+│   ├── keys-store.ts
+│   ├── monitoring-store.ts
+│   ├── performance-store.ts
+│   ├── project-store.ts
+│   ├── security-store.ts
+│   └── ui-store.ts
+├── tailwind.config.ts
+├── tree.txt
+├── tsconfig.json
+├── types
+│   ├── ai.ts
+│   ├── api-key.ts
+│   ├── deployment.ts
+│   ├── docs.ts
+│   ├── endpoint.ts
+│   ├── index.ts
+│   ├── marketplace.ts
+│   ├── monitoring.ts
+│   ├── next-auth.d.ts
+│   ├── performance.ts
+│   ├── project.ts
+│   ├── security.ts
+│   ├── team.ts
+│   └── user.ts
+└── verify.sh
+
+121 directories, 492 files

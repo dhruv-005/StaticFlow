@@ -22,12 +22,13 @@ interface TestResult {
   ms: number;
 }
 
-/* ── mobile tabs ── */
 type Tab = "build" | "code" | "test";
 
 /* ── helpers ── */
 function copyText(text: string) {
-  navigator.clipboard.writeText(text).catch(() => {});
+  if (typeof navigator !== "undefined" && navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(() => {});
+  }
 }
 
 function timeAgo(ts: number) {
@@ -51,7 +52,8 @@ export default function BuilderPage() {
 
   /* chat */
   const [chat, setChat] = useState<ChatMsg[]>([]);
-  const chatEnd = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const promptRef = useRef<HTMLTextAreaElement>(null);
 
   /* quick test */
   const [testMethod, setTestMethod] = useState("GET");
@@ -61,19 +63,40 @@ export default function BuilderPage() {
 
   /* mobile tab */
   const [tab, setTab] = useState<Tab>("build");
+  const hasAutoSwitchedRef = useRef(false);
 
   /* copied feedback */
   const [copied, setCopied] = useState<string | null>(null);
 
-  /* scroll chat to bottom */
+  /* ── smooth, non-jarring chat scroll (uses rAF + nearest) ── */
   useEffect(() => {
-    chatEnd.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat]);
+    const el = chatScrollRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    });
+  }, [chat, generating]);
 
-  /* auto-switch tab on generation (mobile) */
+  /* ── auto-switch to code tab ONCE per generation (mobile only) ── */
   useEffect(() => {
-    if (code && window.innerWidth < 1024) setTab("code");
+    if (!code) {
+      hasAutoSwitchedRef.current = false;
+      return;
+    }
+    if (hasAutoSwitchedRef.current) return;
+    if (typeof window === "undefined") return;
+    if (window.innerWidth < 1024) {
+      setTab("code");
+      hasAutoSwitchedRef.current = true;
+    }
   }, [code]);
+
+  /* ── restore focus to prompt after generation finishes ── */
+  useEffect(() => {
+    if (!generating && typeof window !== "undefined" && window.innerWidth >= 1024) {
+      promptRef.current?.focus();
+    }
+  }, [generating]);
 
   /* ── generate ── */
   const handleGenerate = useCallback(async () => {
@@ -92,10 +115,10 @@ export default function BuilderPage() {
         body: JSON.stringify({ prompt: p }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ error: "Invalid server response" }));
 
       if (!res.ok) {
-        throw new Error(data.error || "Generation failed");
+        throw new Error(data.error || `Request failed (${res.status})`);
       }
 
       setCode(data.code || "");
@@ -113,17 +136,18 @@ export default function BuilderPage() {
         ...prev,
         {
           role: "assistant",
-          content: data.message || "API generated successfully! Check the Code tab.",
+          content: data.message || "✅ API generated successfully! Check the Code tab.",
           ts: Date.now(),
         },
       ]);
     } catch (err: any) {
-      setGenError(err.message || "Something went wrong.");
+      const msg = err?.message || "Something went wrong.";
+      setGenError(msg);
       setChat((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `Error: ${err.message || "Generation failed. Please try again."}`,
+          content: `❌ ${msg}`,
           ts: Date.now(),
         },
       ]);
@@ -131,6 +155,14 @@ export default function BuilderPage() {
       setGenerating(false);
     }
   }, [prompt, generating]);
+
+  /* ── keyboard: Enter sends, Shift+Enter newline ── */
+  const handlePromptKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleGenerate();
+    }
+  };
 
   /* ── quick test ── */
   const handleTest = async () => {
@@ -162,7 +194,7 @@ export default function BuilderPage() {
       setTestResult({
         status: 0,
         ok: false,
-        body: err.message || "Network error",
+        body: err?.message || "Network error",
         ms: 0,
       });
     } finally {
@@ -186,19 +218,19 @@ export default function BuilderPage() {
   ];
 
   return (
-    <div className="space-y-4 lg:space-y-6">
+    <div className="space-y-4 lg:space-y-6 pb-4">
       {/* Header */}
-      <div>
+      <header>
         <h1 className="text-[clamp(1.3rem,3vw,1.75rem)] font-bold text-[var(--text)]">
           AI Builder
         </h1>
         <p className="text-sm text-[var(--muted)] mt-0.5">
           Describe your API and get a live endpoint in seconds
         </p>
-      </div>
+      </header>
 
       {/* ── Prompt Input (always visible) ── */}
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -207,30 +239,36 @@ export default function BuilderPage() {
           className="space-y-3"
         >
           <textarea
+            ref={promptRef}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handlePromptKey}
             placeholder="Describe the API you want to build… e.g. 'Create a REST API for a bookstore with 100 books including title, author, genre, price, and ISBN'"
             rows={3}
             disabled={generating}
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-colors resize-none"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-colors resize-none disabled:opacity-60"
             style={{ fontSize: "16px" }}
           />
 
-          {/* Suggestions */}
-          <div className="flex flex-wrap gap-2">
+          {/* Suggestions — horizontal scroll on mobile, prevents layout shift */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
             {suggestions.map((s) => (
               <button
                 key={s}
                 type="button"
-                onClick={() => setPrompt(s)}
-                className="text-[11px] sm:text-xs px-2.5 py-1 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--accent)]/40 transition-colors truncate max-w-[200px] sm:max-w-none"
+                onClick={() => {
+                  setPrompt(s);
+                  promptRef.current?.focus();
+                }}
+                disabled={generating}
+                className="shrink-0 text-[11px] sm:text-xs px-2.5 py-1 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--accent)]/40 transition-colors disabled:opacity-50"
               >
                 {s}
               </button>
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               type="submit"
               disabled={generating || !prompt.trim()}
@@ -253,103 +291,113 @@ export default function BuilderPage() {
                 </>
               )}
             </button>
+            <span className="text-[11px] text-[var(--muted)]">
+              Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--bg)] text-[10px]">Enter</kbd> to send
+            </span>
             {genError && (
-              <span className="text-xs text-red-400 break-words flex-1 min-w-0">
+              <span className="text-xs text-red-400 break-words flex-1 min-w-0 basis-full sm:basis-auto">
                 {genError}
               </span>
             )}
           </div>
         </form>
-      </div>
+      </section>
 
-      {/* ── Credentials Banner (animated) ── */}
-      <div
-        className="overflow-hidden transition-all duration-500 ease-in-out"
-        style={{
-          maxHeight: credsOpen && creds ? "200px" : "0px",
-          opacity: credsOpen && creds ? 1 : 0,
-        }}
-      >
-        {creds && (
-          <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-4 sm:p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-[var(--accent)] flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-                Live API Credentials
-              </h3>
-              <button
-                onClick={() => setCredsOpen(false)}
-                className="text-xs text-[var(--muted)] hover:text-[var(--text)] transition-colors"
-              >
-                Collapse
-              </button>
+      {/* ── Credentials Banner — NO height animation (prevents jump), uses opacity+scale ── */}
+      {creds && credsOpen && (
+        <section
+          className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-4 sm:p-5 space-y-3 animate-fade-in"
+          style={{
+            animation: "fadeInUp 0.3s ease-out",
+          }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-bold text-[var(--accent)] flex items-center gap-2 min-w-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              <span className="truncate">Live API Credentials</span>
+            </h3>
+            <button
+              onClick={() => setCredsOpen(false)}
+              className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+            >
+              Hide
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* URL */}
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-[var(--muted)] mb-1">
+                Endpoint URL
+              </p>
+              <div className="flex items-center gap-2 min-w-0">
+                <code className="flex-1 text-xs sm:text-sm text-[var(--accent)] font-mono bg-[var(--bg)] border border-[var(--border)] rounded-md px-3 py-2 truncate min-w-0">
+                  {creds.url}
+                </code>
+                <button
+                  onClick={() => handleCopy(creds.url, "url")}
+                  className="shrink-0 p-2 rounded-md border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--border)]/50 transition-colors"
+                  aria-label="Copy URL"
+                >
+                  {copied === "url" ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" />
+                      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* URL */}
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wider text-[var(--muted)] mb-1">
-                  Endpoint URL
-                </p>
-                <div className="flex items-center gap-2 min-w-0">
-                  <code className="flex-1 text-xs sm:text-sm text-[var(--accent)] font-mono bg-[var(--bg)] border border-[var(--border)] rounded-md px-3 py-2 truncate min-w-0">
-                    {creds.url}
-                  </code>
-                  <button
-                    onClick={() => handleCopy(creds.url, "url")}
-                    className="shrink-0 p-2 rounded-md border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--border)]/50 transition-colors"
-                    aria-label="Copy URL"
-                  >
-                    {copied === "url" ? (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round">
-                        <path d="M20 6L9 17l-5-5" />
-                      </svg>
-                    ) : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2" />
-                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* API Key */}
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wider text-[var(--muted)] mb-1">
-                  API Key
-                </p>
-                <div className="flex items-center gap-2 min-w-0">
-                  <code className="flex-1 text-xs sm:text-sm text-purple-400 font-mono bg-[var(--bg)] border border-[var(--border)] rounded-md px-3 py-2 truncate min-w-0">
-                    {creds.apiKey}
-                  </code>
-                  <button
-                    onClick={() => handleCopy(creds.apiKey, "key")}
-                    className="shrink-0 p-2 rounded-md border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--border)]/50 transition-colors"
-                    aria-label="Copy API Key"
-                  >
-                    {copied === "key" ? (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round">
-                        <path d="M20 6L9 17l-5-5" />
-                      </svg>
-                    ) : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2" />
-                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
+            {/* API Key */}
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-[var(--muted)] mb-1">
+                API Key
+              </p>
+              <div className="flex items-center gap-2 min-w-0">
+                <code className="flex-1 text-xs sm:text-sm text-purple-400 font-mono bg-[var(--bg)] border border-[var(--border)] rounded-md px-3 py-2 truncate min-w-0">
+                  {creds.apiKey}
+                </code>
+                <button
+                  onClick={() => handleCopy(creds.apiKey, "key")}
+                  className="shrink-0 p-2 rounded-md border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--border)]/50 transition-colors"
+                  aria-label="Copy API Key"
+                >
+                  {copied === "key" ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" />
+                      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                    </svg>
+                  )}
+                </button>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </section>
+      )}
+
+      {/* Show reopen button when credentials exist but hidden */}
+      {creds && !credsOpen && (
+        <button
+          onClick={() => setCredsOpen(true)}
+          className="text-xs text-[var(--accent)] hover:underline"
+        >
+          Show credentials
+        </button>
+      )}
 
       {/* ── Mobile Tabs ── */}
-      <div className="lg:hidden flex gap-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] p-1">
+      <div className="lg:hidden flex gap-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] p-1 sticky top-2 z-10">
         {(["build", "code", "test"] as Tab[]).map((t) => (
           <button
             key={t}
@@ -361,14 +409,14 @@ export default function BuilderPage() {
             }`}
           >
             {t}
-            {t === "code" && code && (
+            {t === "code" && code && tab !== "code" && (
               <span className="ml-1 w-1.5 h-1.5 rounded-full bg-[var(--accent)] inline-block" />
             )}
           </button>
         ))}
       </div>
 
-      {/* ── Main Content Grid ── */}
+      {/* ── Main Content Grid — FIXED heights prevent jumping ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         {/* ── LEFT COLUMN ── */}
         <div
@@ -376,20 +424,31 @@ export default function BuilderPage() {
             tab !== "build" && tab !== "test" ? "hidden lg:block" : ""
           }`}
         >
-          {/* Chat History (build tab on mobile) */}
+          {/* Chat History */}
           <div
             className={`rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col ${
               tab === "test" ? "hidden lg:flex" : "flex"
             }`}
-            style={{ maxHeight: "500px" }}
+            style={{ height: "clamp(300px, 50vh, 500px)" }}
           >
-            <div className="px-4 py-3 border-b border-[var(--border)] shrink-0">
+            <div className="px-4 py-3 border-b border-[var(--border)] shrink-0 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-[var(--text)]">
                 Chat History
               </h2>
+              {chat.length > 0 && (
+                <button
+                  onClick={() => setChat([])}
+                  className="text-[11px] text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                >
+                  Clear
+                </button>
+              )}
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar min-h-[120px]">
-              {chat.length === 0 && (
+            <div
+              ref={chatScrollRef}
+              className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar"
+            >
+              {chat.length === 0 && !generating && (
                 <div className="flex flex-col items-center justify-center h-full text-center py-8">
                   <div className="w-10 h-10 rounded-full bg-[var(--accent)]/10 flex items-center justify-center mb-3">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
@@ -439,11 +498,10 @@ export default function BuilderPage() {
                   </div>
                 </div>
               )}
-              <div ref={chatEnd} />
             </div>
           </div>
 
-          {/* Quick Test (test tab on mobile) */}
+          {/* Quick Test */}
           <div
             className={`rounded-xl border border-[var(--border)] bg-[var(--surface)] ${
               tab === "build" ? "hidden lg:block" : "block"
@@ -484,57 +542,60 @@ export default function BuilderPage() {
                 </button>
               </div>
 
-              {testResult && (
-                <div className="rounded-lg border border-[var(--border)] bg-[var(--bg)] overflow-hidden">
-                  <div className="flex items-center gap-3 px-3 py-2 border-b border-[var(--border)]">
-                    <span
-                      className={`text-xs font-bold px-2 py-0.5 rounded ${
-                        testResult.ok
-                          ? "bg-green-500/20 text-green-400"
-                          : "bg-red-500/20 text-red-400"
-                      }`}
-                    >
-                      {testResult.status || "ERR"}
-                    </span>
-                    <span className="text-xs text-[var(--muted)]">
-                      {testResult.ms}ms
-                    </span>
-                    <button
-                      onClick={() => handleCopy(testResult.body, "response")}
-                      className="ml-auto text-xs text-[var(--muted)] hover:text-[var(--text)] transition-colors"
-                    >
-                      {copied === "response" ? "Copied!" : "Copy"}
-                    </button>
+              {/* Reserved slot for result — min-height prevents layout jump */}
+              <div className="min-h-[80px]">
+                {testResult && (
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--bg)] overflow-hidden">
+                    <div className="flex items-center gap-3 px-3 py-2 border-b border-[var(--border)]">
+                      <span
+                        className={`text-xs font-bold px-2 py-0.5 rounded ${
+                          testResult.ok
+                            ? "bg-green-500/20 text-green-400"
+                            : "bg-red-500/20 text-red-400"
+                        }`}
+                      >
+                        {testResult.status || "ERR"}
+                      </span>
+                      <span className="text-xs text-[var(--muted)]">
+                        {testResult.ms}ms
+                      </span>
+                      <button
+                        onClick={() => handleCopy(testResult.body, "response")}
+                        className="ml-auto text-xs text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                      >
+                        {copied === "response" ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                    <pre className="p-3 text-xs sm:text-sm font-mono text-[var(--text)] overflow-x-auto max-h-64 overflow-y-auto no-scrollbar">
+                      <code className="break-all whitespace-pre-wrap">
+                        {testResult.body}
+                      </code>
+                    </pre>
                   </div>
-                  <pre className="p-3 text-xs sm:text-sm font-mono text-[var(--text)] overflow-x-auto max-h-64 overflow-y-auto no-scrollbar">
-                    <code className="break-all whitespace-pre-wrap">
-                      {testResult.body}
-                    </code>
-                  </pre>
-                </div>
-              )}
+                )}
 
-              {!creds && !testResult && (
-                <p className="text-xs text-[var(--muted)] text-center py-4">
-                  Generate an API first, then test it here
-                </p>
-              )}
+                {!creds && !testResult && (
+                  <p className="text-xs text-[var(--muted)] text-center py-6">
+                    Generate an API first, then test it here
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ── RIGHT COLUMN: Code Preview ── */}
+        {/* ── RIGHT COLUMN: Code Preview — ALWAYS fixed height ── */}
         <div
           className={`rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col ${
             tab !== "code" ? "hidden lg:flex" : "flex"
           }`}
-          style={{ maxHeight: "700px" }}
+          style={{ height: "clamp(400px, 70vh, 700px)" }}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
             <h2 className="text-sm font-semibold text-[var(--text)]">
               Generated Code
             </h2>
-            {code && (
+            {code && !generating && (
               <button
                 onClick={() => handleCopy(code, "code")}
                 className="text-xs text-[var(--muted)] hover:text-[var(--text)] transition-colors flex items-center gap-1"
@@ -558,8 +619,22 @@ export default function BuilderPage() {
               </button>
             )}
           </div>
-          <div className="flex-1 overflow-auto no-scrollbar p-4 min-h-[200px]">
-            {code ? (
+          <div className="flex-1 overflow-auto no-scrollbar p-4">
+            {generating && !code ? (
+              /* Skeleton loader while generating — no more empty jarring state */
+              <div className="space-y-2">
+                {[...Array(14)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-3 rounded bg-[var(--border)]/60 animate-pulse"
+                    style={{
+                      width: `${35 + ((i * 13) % 55)}%`,
+                      animationDelay: `${i * 70}ms`,
+                    }}
+                  />
+                ))}
+              </div>
+            ) : code ? (
               <pre className="text-xs sm:text-sm font-mono text-[var(--text)] leading-relaxed">
                 <code className="break-all whitespace-pre-wrap">{code}</code>
               </pre>
@@ -581,6 +656,20 @@ export default function BuilderPage() {
           </div>
         </div>
       </div>
+
+      {/* Inline keyframes — scoped, prevents extra CSS file */}
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(-6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
