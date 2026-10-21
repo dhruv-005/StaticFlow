@@ -4,10 +4,21 @@ services:
     runtime: python
     region: oregon
     plan: free
+    branch: main
+    rootDir: backend
+    autoDeploy: true
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: python -m uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: ENVIRONMENT
         value: production
       - key: PYTHON_VERSION
-        value: 3.12.0
+        value: "3.12.0"
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        value: "https://staticflow-dhruv-005.vercel.app"
