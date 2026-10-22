@@ -1,11 +1,44 @@
-const metrics = [
-  { value: "10,000+", label: "APIs Generated" },
-  { value: "99.98%", label: "Platform Uptime" },
-  { value: "50+", label: "Frameworks Supported" },
-  { value: "< 15 min", label: "Avg Deploy Time" },
-];
+"use client";
+
+import { useEffect, useState } from "react";
+
+interface PlatformStats {
+  totalProjects: number;
+  totalUsers: number;
+  totalApiCalls: number;
+  totalKeys: number;
+  uptime: number;
+}
 
 export function TrustBar() {
+  const [stats, setStats] = useState<PlatformStats | null>(null);
+
+  useEffect(() => {
+    fetch("/api/stats")
+      .then((r) => r.json())
+      .then(setStats)
+      .catch(() => {});
+  }, []);
+
+  const metrics = [
+    {
+      value: stats ? `${stats.totalApiCalls.toLocaleString()}+` : "—",
+      label: "API Calls Served",
+    },
+    {
+      value: stats ? `${stats.uptime}%` : "—",
+      label: "Platform Uptime",
+    },
+    {
+      value: stats ? `${stats.totalProjects.toLocaleString()}+` : "—",
+      label: "APIs Generated",
+    },
+    {
+      value: stats ? `${stats.totalUsers.toLocaleString()}+` : "—",
+      label: "Developers",
+    },
+  ];
+
   return (
     <section className="border-y" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface)" }}>
       <div className="catalyst-container grid grid-cols-2 gap-8 py-12 sm:grid-cols-4 lg:gap-12">

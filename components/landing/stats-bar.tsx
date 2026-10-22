@@ -2,14 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const stats = [
-  { value: 10000, suffix: "+", label: "APIs Generated" },
-  { value: 99.9, suffix: "%", label: "Security Score" },
-  { value: 50, suffix: "+", label: "Frameworks" },
-  { value: 15, suffix: " min", label: "Avg Deploy Time" },
-];
+interface PlatformStats {
+  totalProjects: number;
+  totalUsers: number;
+  totalApiCalls: number;
+  totalKeys: number;
+  uptime: number;
+}
 
-function AnimatedNumber({ target, suffix }: { target: number; suffix: string }) {
+function AnimatedNumber({ target, suffix, decimals = 0 }: { target: number; suffix: string; decimals?: number }) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const hasAnimated = useRef(false);
@@ -29,7 +30,7 @@ function AnimatedNumber({ target, suffix }: { target: number; suffix: string }) 
               setCount(target);
               clearInterval(timer);
             } else {
-              setCount(Math.floor(current * 10) / 10);
+              setCount(current);
             }
           }, duration / steps);
         }
@@ -41,7 +42,7 @@ function AnimatedNumber({ target, suffix }: { target: number; suffix: string }) 
     return () => observer.disconnect();
   }, [target]);
 
-  const display = Number.isInteger(target) ? Math.floor(count) : count.toFixed(1);
+  const display = decimals > 0 ? count.toFixed(decimals) : Math.floor(count).toLocaleString();
 
   return (
     <div ref={ref} className="text-3xl font-black sm:text-4xl">
@@ -52,12 +53,48 @@ function AnimatedNumber({ target, suffix }: { target: number; suffix: string }) 
 }
 
 export function StatsBar() {
+  const [stats, setStats] = useState<PlatformStats | null>(null);
+
+  useEffect(() => {
+    fetch("/api/stats")
+      .then((r) => r.json())
+      .then(setStats)
+      .catch(() => {});
+  }, []);
+
+  const items = [
+    {
+      value: stats?.totalApiCalls ?? 0,
+      suffix: "+",
+      label: "API Calls Served",
+      decimals: 0,
+    },
+    {
+      value: stats?.uptime ?? 99.9,
+      suffix: "%",
+      label: "Platform Uptime",
+      decimals: 1,
+    },
+    {
+      value: stats?.totalProjects ?? 0,
+      suffix: "+",
+      label: "APIs Generated",
+      decimals: 0,
+    },
+    {
+      value: stats?.totalUsers ?? 0,
+      suffix: "+",
+      label: "Developers",
+      decimals: 0,
+    },
+  ];
+
   return (
     <section className="relative border-y border-cyber-white/5 bg-cyber-navy/30 backdrop-blur-sm">
       <div className="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-6 py-12 sm:grid-cols-4">
-        {stats.map((stat) => (
+        {items.map((stat) => (
           <div key={stat.label} className="text-center">
-            <AnimatedNumber target={stat.value} suffix={stat.suffix} />
+            <AnimatedNumber target={stat.value} suffix={stat.suffix} decimals={stat.decimals} />
             <p className="mt-2 text-sm text-cyber-white/40">{stat.label}</p>
           </div>
         ))}
