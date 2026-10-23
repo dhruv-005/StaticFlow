@@ -14,8 +14,15 @@ import {
   Rocket,
   LogOut,
   Zap,
+  Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const SUPER_ADMIN_EMAILS = [
+  "dhruv@api.com",
+  "admin@api.com",
+  "vatsal@api.com",
+];
 
 const navItems = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
@@ -40,6 +47,12 @@ export function Sidebar() {
         .join("")
         .toUpperCase()
     : "??";
+
+  const isAdmin =
+    user?.role === "ADMIN" ||
+    SUPER_ADMIN_EMAILS.includes(
+      (user?.email || "").toLowerCase().trim()
+    );
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-cyber-white/10 bg-cyber-navy/80 backdrop-blur-xl">
@@ -71,6 +84,26 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        {isAdmin && (
+          <div className="pt-3 mt-3 border-t border-cyber-white/10">
+            <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-cyber-purple/60">
+              Administration
+            </p>
+            <Link
+              href="/admin"
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all",
+                pathname.startsWith("/admin")
+                  ? "bg-cyber-purple/10 text-cyber-purple border border-cyber-purple/20"
+                  : "text-cyber-white/50 hover:text-cyber-purple hover:bg-cyber-purple/5 border border-transparent"
+              )}
+            >
+              <Crown className="h-4 w-4" />
+              Admin Panel
+            </Link>
+          </div>
+        )}
       </nav>
 
       <div className="border-t border-cyber-white/10 p-4 space-y-3">

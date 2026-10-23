@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, createAuditLog } from "@/lib/auth";
+import {
+  requireSuperAdmin,
+  isSuperAdmin,
+  createAuditLog,
+} from "@/lib/auth";
 import {
   getEntityById,
+  getEntities,
   updateEntity,
   deleteEntity,
 } from "@/lib/render-client";
@@ -11,8 +16,27 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const admin = await requireAdmin(req);
+    const admin = await requireSuperAdmin(req);
     const { role } = await req.json();
+
+    const res = await getEntities("users", 10000);
+    const targetUser = res.data.find(
+      (u: any) => String(u.id) === String(params.id)
+    );
+
+    if (!targetUser) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    if (isSuperAdmin(targetUser.email || "")) {
+      return NextResponse.json(
+        { error: "Cannot change role of a super admin" },
+        { status: 400 }
+      );
+    }
 
     if (params.id === admin.id && role === "USER") {
       return NextResponse.json(
@@ -29,7 +53,7 @@ export async function PATCH(
     await createAuditLog(
       admin.id,
       "ADMIN_USER_UPDATED",
-      `Updated role for user ${params.id}`,
+      `Super admin updated role for ${targetUser.email} to ${role}`,
       req
     );
 
@@ -39,7 +63,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (error.message === "FORBIDDEN")
       return NextResponse.json(
-        { error: "Admin access required" },
+        { error: "Super admin access required" },
         { status: 403 }
       );
     return NextResponse.json({ error: "Failed" }, { status: 500 });
@@ -51,7 +75,26 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const admin = await requireAdmin(req);
+    const admin = await requireSuperAdmin(req);
+
+    const res = await getEntities("users", 10000);
+    const targetUser = res.data.find(
+      (u: any) => String(u.id) === String(params.id)
+    );
+
+    if (!targetUser) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    if (isSuperAdmin(targetUser.email || "")) {
+      return NextResponse.json(
+        { error: "Cannot delete a super admin" },
+        { status: 400 }
+      );
+    }
 
     if (params.id === admin.id) {
       return NextResponse.json(
@@ -60,18 +103,12 @@ export async function DELETE(
       );
     }
 
-    let email = "unknown";
-    try {
-      const user = await getEntityById("users", params.id);
-      email = user?.email || user?.name || "unknown";
-    } catch {}
-
     await deleteEntity("users", params.id);
 
     await createAuditLog(
       admin.id,
       "ADMIN_USER_DELETED",
-      `Deleted user ${email}`,
+      `Super admin deleted user ${targetUser.email}`,
       req
     );
 
@@ -81,7 +118,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (error.message === "FORBIDDEN")
       return NextResponse.json(
-        { error: "Admin access required" },
+        { error: "Super admin access required" },
         { status: 403 }
       );
     return NextResponse.json({ error: "Failed" }, { status: 500 });

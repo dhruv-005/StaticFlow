@@ -2,61 +2,114 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Mail, ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+    setMessage("");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-    setSent(true);
-  };
 
-  if (sent) {
-    return (
-      <div className="text-center space-y-4">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: "var(--surface-muted)" }}>
-          <CheckCircle2 className="h-7 w-7" style={{ color: "var(--success)" }} />
-        </div>
-        <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Check your inbox</h2>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          We sent a reset link to <span className="font-semibold" style={{ color: "var(--text)" }}>{email}</span>.
-        </p>
-        <Link href="/login" className="inline-flex items-center gap-1.5 text-sm font-medium" style={{ color: "var(--text)" }}>
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to login
-        </Link>
-      </div>
-    );
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed");
+        return;
+      }
+
+      setSent(true);
+      setMessage(
+        data.resetToken
+          ? `Your reset token is: ${data.resetToken}`
+          : "If an account exists, check your email."
+      );
+    } catch {
+      setError("Network error");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text)" }}>Forgot password?</h2>
-        <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Enter your email and we will send you a reset link.</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="mb-1.5 block text-sm font-medium" style={{ color: "var(--text)" }}>Email</label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" required className="catalyst-input !pl-10" />
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white">StaticFlow</h1>
+          <p className="text-gray-400 mt-2">Reset your password</p>
         </div>
-        <button type="submit" disabled={loading} className="catalyst-btn-primary w-full !justify-center disabled:opacity-50">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send Reset Link"}
-        </button>
-      </form>
 
-      <Link href="/login" className="flex items-center justify-center gap-1.5 text-sm" style={{ color: "var(--text-muted)" }}>
-        <ArrowLeft className="h-3.5 w-3.5" /> Back to login
-      </Link>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 space-y-5">
+          {error && (
+            <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          {sent ? (
+            <>
+              <div className="bg-green-900/30 border border-green-800 text-green-400 px-4 py-3 rounded-lg text-sm">
+                {message}
+              </div>
+              <p className="text-sm text-gray-400">
+                Use this token on the{" "}
+                <Link
+                  href="/reset-password"
+                  className="text-blue-400 hover:text-blue-300"
+                >
+                  reset password page
+                </Link>
+                .
+              </p>
+            </>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="you@example.com"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition disabled:opacity-50"
+              >
+                {loading ? "Sending..." : "Send Reset Link"}
+              </button>
+            </form>
+          )}
+
+          <p className="text-center text-sm text-gray-400">
+            <Link
+              href="/login"
+              className="text-blue-400 hover:text-blue-300"
+            >
+              Back to sign in
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

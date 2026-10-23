@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, isSuperAdmin } from "@/lib/auth";
 import { getEntities } from "@/lib/render-client";
 
 export async function GET(req: NextRequest) {
   try {
-    await requireAdmin(req);
+    const session = await requireAdmin(req);
 
     const url = new URL(req.url);
     const page = parseInt(url.searchParams.get("page") || "1");
@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
       name: u.name,
       email: u.email || "",
       role: (u.role || "USER").toUpperCase(),
+      isSuperAdmin: isSuperAdmin(u.email || ""),
       createdAt: u.createdAt,
       _count: { projects: 0, apiKeys: 0 },
     }));
@@ -48,6 +49,7 @@ export async function GET(req: NextRequest) {
         limit,
         pages: Math.ceil(total / limit),
       },
+      canManageRoles: isSuperAdmin(session.email),
     });
   } catch (error: any) {
     if (error.message === "UNAUTHORIZED")

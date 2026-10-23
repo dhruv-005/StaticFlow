@@ -1,165 +1,131 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, user } = useAuth();
+  const searchParams = useSearchParams();
+  const registered = searchParams.get("registered");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [callbackUrl, setCallbackUrl] = useState("/overview");
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setCallbackUrl(params.get("callbackUrl") || "/overview");
-  }, []);
-
-  useEffect(() => {
-    if (user) router.replace(callbackUrl);
-  }, [user, router, callbackUrl]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-
-    if (!email.trim() || !password.trim()) {
-      setError("Please fill in all fields.");
-      return;
-    }
-
     setLoading(true);
+
     try {
-      await login(email.trim(), password);
-      router.replace(callbackUrl);
-    } catch (err: any) {
-      setError(err.message || "Invalid email or password.");
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Login failed");
+        return;
+      }
+
+      const role = data.user?.role;
+      if (role === "ADMIN") {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="w-full">
-      {/* Logo */}
-      <Link href="/" className="flex items-center gap-2 mb-8 justify-center">
-        <div className="w-8 h-8 rounded-lg bg-[var(--accent)] flex items-center justify-center">
-          <span className="text-[var(--bg)] font-bold text-sm">SF</span>
+    <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white">StaticFlow</h1>
+          <p className="text-gray-400 mt-2">Sign in to your account</p>
         </div>
-        <span className="text-lg font-semibold text-[var(--text)]">
-          StaticFlow
-        </span>
-      </Link>
 
-      {/* Card */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-8 shadow-xl shadow-black/5">
-        <h1 className="text-[clamp(1.25rem,3vw,1.5rem)] font-bold text-[var(--text)] mb-1">
-          Welcome back
-        </h1>
-        <p className="text-sm text-[var(--muted)] mb-6">
-          Sign in to your account to continue
-        </p>
+        <form
+          onSubmit={handleSubmit}
+          className="bg-gray-900 border border-gray-800 rounded-xl p-8 space-y-5"
+        >
+          {registered && (
+            <div className="bg-green-900/30 border border-green-800 text-green-400 px-4 py-3 rounded-lg text-sm">
+              Account created! Please sign in.
+            </div>
+          )}
 
-        {/* Error */}
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400 break-words">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Email */}
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-[var(--text)] mb-1.5"
-            >
-              Email address
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Email
             </label>
             <input
-              id="email"
               type="email"
-              autoComplete="email"
-              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="you@example.com"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-2.5 text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-colors"
-              style={{ fontSize: "16px" }}
             />
           </div>
 
-          {/* Password */}
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-[var(--text)] mb-1.5"
-            >
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Password
             </label>
             <input
-              id="password"
               type="password"
-              autoComplete="current-password"
-              required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-2.5 text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-colors"
-              style={{ fontSize: "16px" }}
+              required
+              className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Your password"
             />
           </div>
 
-          {/* Submit */}
+          <div className="flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-blue-400 hover:text-blue-300"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--bg)] hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition disabled:opacity-50"
           >
-            {loading ? (
-              <>
-                <svg
-                  className="animate-spin h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                Signing in…
-              </>
-            ) : (
-              "Sign in"
-            )}
+            {loading ? "Signing in..." : "Sign In"}
           </button>
+
+          <p className="text-center text-sm text-gray-400">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/signup"
+              className="text-blue-400 hover:text-blue-300"
+            >
+              Sign up
+            </Link>
+          </p>
         </form>
       </div>
-
-      {/* Footer link */}
-      <p className="mt-6 text-center text-sm text-[var(--muted)]">
-        Don&apos;t have an account?{" "}
-        <Link
-          href="/register"
-          className="text-[var(--accent)] hover:underline font-medium"
-        >
-          Create one
-        </Link>
-      </p>
     </div>
   );
 }

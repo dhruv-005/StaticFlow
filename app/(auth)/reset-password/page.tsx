@@ -1,70 +1,143 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Lock, Eye, EyeOff, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 
 export default function ResetPasswordPage() {
-  const [password, setPassword] = useState("");
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [token, setToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [show, setShow] = useState(false);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password !== confirm) return;
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-    setDone(true);
-  };
+    setError("");
 
-  if (done) {
-    return (
-      <div className="text-center space-y-4">
-        <CheckCircle2 className="mx-auto h-14 w-14" style={{ color: "var(--success)" }} />
-        <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Password Updated</h2>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>You can now log in with your new password.</p>
-        <Link href="/login" className="catalyst-btn-primary inline-flex">Go to Login</Link>
-      </div>
-    );
+    if (newPassword !== confirm) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, token, newPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Reset failed");
+        return;
+      }
+
+      router.push("/login?reset=true");
+    } catch {
+      setError("Network error");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text)" }}>Set new password</h2>
-        <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Enter your new password below.</p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white">StaticFlow</h1>
+          <p className="text-gray-400 mt-2">Set a new password</p>
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="bg-gray-900 border border-gray-800 rounded-xl p-8 space-y-5"
+        >
+          {error && (
+            <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Reset Token
+            </label>
+            <input
+              type="text"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              required
+              className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Paste your reset token"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              New Password
+            </label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={6}
+              className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Min 6 characters"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+              className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Repeat password"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition disabled:opacity-50"
+          >
+            {loading ? "Resetting..." : "Reset Password"}
+          </button>
+
+          <p className="text-center text-sm text-gray-400">
+            <Link
+              href="/login"
+              className="text-blue-400 hover:text-blue-300"
+            >
+              Back to sign in
+            </Link>
+          </p>
+        </form>
       </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="mb-1.5 block text-sm font-medium" style={{ color: "var(--text)" }}>New Password</label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
-            <input type={show ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required className="catalyst-input !pl-10 !pr-10" />
-            <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }}>
-              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium" style={{ color: "var(--text)" }}>Confirm Password</label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
-            <input type={show ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" required className="catalyst-input !pl-10" />
-          </div>
-          {confirm && password !== confirm && <p className="mt-1 text-xs" style={{ color: "var(--danger)" }}>Passwords do not match</p>}
-        </div>
-        <button type="submit" disabled={loading} className="catalyst-btn-primary w-full !justify-center disabled:opacity-50">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reset Password"}
-        </button>
-      </form>
-
-      <Link href="/login" className="flex items-center justify-center gap-1.5 text-sm" style={{ color: "var(--text-muted)" }}>
-        <ArrowLeft className="h-3.5 w-3.5" /> Back to login
-      </Link>
     </div>
   );
 }

@@ -2,13 +2,27 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db/prisma";
+import {
+  getEntities,
+  createEntity,
+  updateEntity,
+} from "@/lib/render-client";
+
+/* ── Constants ── */
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.NEXTAUTH_SECRET ||
     process.env.JWT_SECRET ||
     "staticflow-secret-key-change-in-production-32chars!"
 );
+
+export const SUPER_ADMIN_EMAILS = [
+  "dhruv@api.com",
+  "admin@api.com",
+  "vatsal@api.com",
+];
+
+/* ── Types ── */
 
 export interface SessionUser {
   id: string;
@@ -22,7 +36,13 @@ export interface Session {
   expires: string;
 }
 
-/* ── Password ── */
+/* ── Super Admin Check ── */
+
+export function isSuperAdmin(email: string): boolean {
+  return SUPER_ADMIN_EMAILS.includes(email.toLowerCase().trim());
+}
+
+/* ── Password Storage (via Render systemsettings) ── */
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12);
@@ -33,6 +53,75 @@ export async function verifyPassword(
   hash: string
 ): Promise<boolean> {
   return bcrypt.compare(password, hash);
+}
+
+export async function storePasswordHash(
+  email: string,
+  hash: string
+): Promise<void> {
+  const key = `pwd:${email.toLowerCase().trim()}`;
+  const res = await getEntities("systemsettings", 10000);
+  const existing = res.data.find((s: any) => s.name === key);
+  if (existing) {
+    await updateEntity("systemsettings", existing.id, {
+      name: key,
+      description: hash,
+      category: "PASSWORD",
+    });
+  } else {
+    await createEntity("systemsettings", {
+      name: key,
+      description: hash,
+      value: 0,
+      category: "PASSWORD",
+    });
+  }
+}
+
+export async function getPasswordHash(
+  email: string
+): Promise<string | null> {
+  const key = `pwd:${email.toLowerCase().trim()}`;
+  const res = await getEntities("systemsettings", 10000);
+  const entry = res.data.find((s: any) => s.name === key);
+  return entry?.description || null;
+}
+
+/* ── Reset Token Storage (via Render systemsettings) ── */
+
+export async function storeResetToken(
+  email: string,
+  token: string,
+  expiresAt: number
+): Promise<void> {
+  const key = `reset:${email.toLowerCase().trim()}`;
+  const res = await getEntities("systemsettings", 10000);
+  const existing = res.data.find((s: any) => s.name === key);
+  if (existing) {
+    await updateEntity("systemsettings", existing.id, {
+      name: key,
+      description: token,
+      value: expiresAt,
+      category: "RESET_TOKEN",
+    });
+  } else {
+    await createEntity("systemsettings", {
+      name: key,
+      description: token,
+      value: expiresAt,
+      category: "RESET_TOKEN",
+    });
+  }
+}
+
+export async function getResetToken(
+  email: string
+): Promise<{ token: string; expiresAt: number } | null> {
+  const key = `reset:${email.toLowerCase().trim()}`;
+  const res = await getEntities("systemsettings", 10000);
+  const entry = res.data.find((s: any) => s.name === key);
+  if (!entry) return null;
+  return { token: entry.description, expiresAt: entry.value || 0 };
 }
 
 /* ── JWT ── */
@@ -86,29 +175,50 @@ export async function getCurrentUser() {
   const session = await getSession();
   if (!session) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      createdAt: true,
-      _count: {
-        select: {
-          apiKeys: true,
-          projects: true,
-        },
-      },
-    },
-  });
+  try {
+    const res = await getEntities("users", 10000);
+    const user = res.data.find(
+      (u: any) =>
+        u.email === session.user.email ||
+        String(u.id) === String(session.user.id)
+    );
 
-  return user;
+    if (!user) {
+      return {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+        role: session.user.role,
+        createdAt: new Date().toISOString(),
+        _count: { apiKeys: 0, projects: 0 },
+      };
+    }
+
+    return {
+      id: String(user.id),
+      email: user.email,
+      name: user.name,
+      role: (user.role || "USER").toUpperCase(),
+      createdAt: user.createdAt,
+      _count: { apiKeys: 0, projects: 0 },
+    };
+  } catch {
+    return {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      role: session.user.role,
+      createdAt: new Date().toISOString(),
+      _count: { apiKeys: 0, projects: 0 },
+    };
+  }
 }
 
-/* ── Auth guards ── */
+/* ── Auth Guards ── */
 
-export async function requireAuth(_req?: NextRequest): Promise<SessionUser> {
+export async function requireAuth(
+  _req?: NextRequest
+): Promise<SessionUser> {
   const session = await getSession();
   if (!session) {
     throw new Error("UNAUTHORIZED");
@@ -116,84 +226,112 @@ export async function requireAuth(_req?: NextRequest): Promise<SessionUser> {
   return session.user;
 }
 
-export async function requireAdmin(_req?: NextRequest): Promise<SessionUser> {
+export async function requireAdmin(
+  _req?: NextRequest
+): Promise<SessionUser> {
   const user = await requireAuth();
-  if (user.role !== "ADMIN") {
+  if (user.role !== "ADMIN" && !isSuperAdmin(user.email)) {
     throw new Error("FORBIDDEN");
   }
   return user;
 }
 
-/* ── Audit log — accepts BOTH calling styles ── */
+export async function requireSuperAdmin(
+  _req?: NextRequest
+): Promise<SessionUser> {
+  const user = await requireAuth();
+  if (!isSuperAdmin(user.email)) {
+    throw new Error("FORBIDDEN");
+  }
+  return user;
+}
+
+/* ── Audit Log (via Render) ── */
 
 export async function createAuditLog(
-  userIdOrParams: string | { action: string; entity: string; entityId?: string; details?: string; userId?: string; ip?: string; userAgent?: string },
+  userIdOrParams:
+    | string
+    | {
+        action: string;
+        entity?: string;
+        entityId?: string;
+        details?: string;
+        userId?: string;
+        ip?: string;
+        userAgent?: string;
+      },
   action?: string,
   details?: string,
   _req?: NextRequest
 ) {
   try {
+    let logAction = "UNKNOWN";
+    let logDetails = "";
+    let logUserId = "";
+
     if (typeof userIdOrParams === "string") {
-      // Called as: createAuditLog(userId, action, details, req)
-      await prisma.auditLog.create({
-        data: {
-          action: action || "UNKNOWN",
-          details: details || null,
-          userId: userIdOrParams,
-        },
-      });
+      logUserId = userIdOrParams;
+      logAction = action || "UNKNOWN";
+      logDetails = details || "";
     } else {
-      // Called as: createAuditLog({ action, entity, ... })
-      await prisma.auditLog.create({
-        data: {
-          action: userIdOrParams.action,
-          details: userIdOrParams.details || null,
-          userId: userIdOrParams.userId || null,
-          ipAddress: userIdOrParams.ip || null,
-        },
-      });
+      logUserId = userIdOrParams.userId || "";
+      logAction = userIdOrParams.action;
+      logDetails = userIdOrParams.details || "";
     }
+
+    await createEntity("auditlogs", {
+      name: logAction,
+      description: logDetails,
+      value: 0,
+      category: logUserId,
+    });
   } catch (e) {
     console.error("Audit log failed:", e);
   }
 }
 
-/* ── Usage tracking — accepts BOTH calling styles ── */
+/* ── Usage Tracking (via Render) ── */
 
 export async function trackUsage(
-  userIdOrParams: string | { endpoint: string; method: string; status: number; latency: number; userId?: string },
+  userIdOrParams:
+    | string
+    | {
+        endpoint: string;
+        method: string;
+        status: number;
+        latency: number;
+        userId?: string;
+      },
   endpoint?: string,
   method?: string,
   status?: number,
   latency?: number
 ) {
   try {
+    let ep = "/unknown";
+    let meth = "GET";
+    let stat = 200;
+    let lat = 0;
+
     if (typeof userIdOrParams === "string") {
-      // Called as: trackUsage(userId, endpoint, method, status, latency)
-      await prisma.usageRecord.create({
-        data: {
-          endpoint: endpoint || "/unknown",
-          method: method || "GET",
-          status: status || 200,
-          latency: latency || 0,
-          userId: userIdOrParams,
-        },
-      });
+      ep = endpoint || "/unknown";
+      meth = method || "GET";
+      stat = status || 200;
+      lat = latency || 0;
     } else {
-      // Called as: trackUsage({ endpoint, method, ... })
-      await prisma.usageRecord.create({
-        data: {
-          endpoint: userIdOrParams.endpoint,
-          method: userIdOrParams.method,
-          status: userIdOrParams.status,
-          latency: userIdOrParams.latency,
-          userId: userIdOrParams.userId || null,
-        },
-      });
+      ep = userIdOrParams.endpoint;
+      meth = userIdOrParams.method;
+      stat = userIdOrParams.status;
+      lat = userIdOrParams.latency;
     }
+
+    await createEntity("usagerecords", {
+      name: meth,
+      description: ep,
+      value: stat,
+      category: ep,
+    });
   } catch (e) {
     console.error("Usage tracking failed:", e);
   }
 }
-
-export { prisma };
