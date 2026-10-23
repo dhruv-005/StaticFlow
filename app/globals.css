@@ -4,184 +4,82 @@
 
 @layer base {
   :root {
-    --bg-main: #F7F7F9;
-    --bg-secondary: #FFFFFF;
-    --bg-surface: #FFFFFF;
-    --bg-elevated: #F0F0F3;
-    --border: #E2E2E8;
-    --border-subtle: #ECECF0;
-    --text-primary: #18181B;
-    --text-secondary: #52525B;
-    --text-muted: #71717A;
-    --accent: #D91E35;
-    --accent-hover: #B8172C;
-    --accent-glow: rgba(217, 30, 53, 0.12);
-    --accent-soft: rgba(217, 30, 53, 0.06);
-    --success: #16A34A;
-    --warning: #D97706;
-    --info: #2563EB;
-    --error: #DC2626;
-    --code-bg: #F4F4F5;
-    --sidebar-bg: #FAFAFA;
-    --card-bg: #FFFFFF;
-    --input-bg: #FFFFFF;
+    --background: #fafafa;
+    --foreground: #0a0a0a;
+    --border: #e5e5e5;
+    --card: #ffffff;
+    --card-foreground: #0a0a0a;
+    --muted: #f5f5f5;
+    --muted-foreground: #737373;
   }
 
   .dark {
-    --bg-main: #080808;
-    --bg-secondary: #0D0D0F;
-    --bg-surface: #121214;
-    --bg-elevated: #19191D;
-    --border: #29292F;
-    --border-subtle: #1F1F24;
-    --text-primary: #F5F5F7;
-    --text-secondary: #A1A1AA;
-    --text-muted: #71717A;
-    --accent: #EF233C;
-    --accent-hover: #D91E35;
-    --accent-glow: rgba(239, 35, 60, 0.16);
-    --accent-soft: rgba(239, 35, 60, 0.08);
-    --success: #22C55E;
-    --warning: #F59E0B;
-    --info: #60A5FA;
-    --error: #F87171;
-    --code-bg: #0D0D0F;
-    --sidebar-bg: #0A0A0C;
-    --card-bg: #121214;
-    --input-bg: #19191D;
+    --background: #0a0a0a;
+    --foreground: #fafafa;
+    --border: #262626;
+    --card: #171717;
+    --card-foreground: #fafafa;
+    --muted: #171717;
+    --muted-foreground: #a3a3a3;
   }
-
-  * { border-color: var(--border); }
 
   body {
-    background-color: var(--bg-main);
-    color: var(--text-primary);
-    -webkit-font-smoothing: antialiased;
+    @apply bg-[var(--background)] text-[var(--foreground)] antialiased transition-colors duration-300;
   }
 
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+  }
 }
 
 @layer components {
+  /* Buttons */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5
-           bg-crimson text-white font-medium rounded-xl text-sm
-           transition-all duration-200
-           hover:bg-crimson-hover hover:shadow-glow
-           active:scale-[0.98]
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none;
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson disabled:pointer-events-none disabled:opacity-50 bg-crimson text-white hover:bg-crimson-hover shadow-glow hover:shadow-glow-lg active:scale-95;
   }
-
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5
-           font-medium rounded-xl text-sm border transition-all duration-200
-           active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
-    background: var(--bg-surface);
-    color: var(--text-primary);
-    border-color: var(--border);
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson disabled:pointer-events-none disabled:opacity-50 bg-noir-800 text-white hover:bg-noir-700 border border-noir-700 hover:border-crimson/50 active:scale-95;
   }
-  .btn-secondary:hover {
-    background: var(--bg-elevated);
-    border-color: var(--accent);
-  }
-
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2
-           font-medium rounded-xl text-sm transition-all duration-200
-           active:scale-[0.98];
-    color: var(--text-secondary);
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson disabled:pointer-events-none disabled:opacity-50 hover:bg-noir-800 hover:text-white active:scale-95;
   }
-  .btn-ghost:hover { background: var(--accent-soft); color: var(--accent); }
+  .btn-sm { @apply h-9 px-3; }
+  .btn-lg { @apply h-11 px-8; }
 
-  .btn-sm { @apply px-3 py-1.5 text-xs rounded-lg; }
-  .btn-lg { @apply px-7 py-3.5 text-base rounded-2xl; }
-
+  /* Cards */
   .card {
-    @apply rounded-2xl border p-6 transition-all duration-200;
-    background: var(--card-bg);
-    border-color: var(--border);
+    @apply bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-card transition-all hover:border-crimson/30 hover:shadow-glow-sm relative overflow-hidden;
   }
-  .card:hover {
-    border-color: var(--accent);
-    box-shadow: 0 0 20px var(--accent-glow);
-  }
-
   .card-static {
-    @apply rounded-2xl border p-6;
-    background: var(--card-bg);
-    border-color: var(--border);
+    @apply bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-card relative overflow-hidden;
   }
 
+  /* Inputs */
   .input {
-    @apply w-full px-4 py-2.5 rounded-xl border text-sm
-           transition-all duration-200 outline-none;
-    background: var(--input-bg);
-    color: var(--text-primary);
-    border-color: var(--border);
-  }
-  .input::placeholder { color: var(--text-muted); }
-  .input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
+    @apply flex h-10 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm ring-offset-[var(--background)] file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson focus-visible:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-all;
   }
 
+  /* Badges */
   .badge {
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5
-           text-xs font-medium rounded-pill;
+    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-crimson focus:ring-offset-2;
   }
 
-  .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-2 rounded-xl text-sm
-           font-medium transition-all duration-150;
-    color: var(--text-secondary);
-  }
-  .sidebar-link:hover {
-    background: var(--accent-soft);
-    color: var(--text-primary);
-  }
-  .sidebar-link.active {
-    background: var(--accent-soft);
-    color: var(--accent);
-  }
-
-  .topbar {
-    @apply sticky top-0 z-20 flex items-center justify-between
-           h-16 px-6 border-b backdrop-blur-md;
-    background: color-mix(in srgb, var(--bg-main) 80%, transparent);
-    border-color: var(--border);
-  }
-
+  /* Typography */
   .section-title {
-    @apply font-display text-4xl md:text-5xl font-bold tracking-tight;
-    color: var(--text-primary);
+    @apply text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-[var(--foreground)];
   }
-
   .section-subtitle {
-    @apply text-lg max-w-2xl mx-auto;
-    color: var(--text-secondary);
+    @apply text-lg text-[var(--muted-foreground)] max-w-[700px];
   }
 }
 
 @layer utilities {
   .text-gradient {
-    @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, var(--accent), #FF6B81);
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-crimson to-crimson-hover;
   }
-
   .bg-grid {
-    background-image:
-      linear-gradient(rgba(239, 35, 60, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(239, 35, 60, 0.03) 1px, transparent 1px);
     background-size: 40px 40px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
-    }
+    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   }
 }

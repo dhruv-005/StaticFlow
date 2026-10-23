@@ -6,73 +6,67 @@ const config: Config = {
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
-    "./lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
+      fontFamily: {
+        display: ['var(--font-manrope)', 'sans-serif'],
+        sans: ['var(--font-inter)', 'sans-serif'],
+        mono: ['var(--font-jetbrains-mono)', 'monospace'],
+      },
       colors: {
         noir: {
-          950: "#080808",
-          900: "#0D0D0F",
-          800: "#121214",
-          700: "#19191D",
-          600: "#212126",
-          500: "#29292F",
-          400: "#3F3F46",
-          300: "#52525B",
-          200: "#71717A",
-          100: "#A1A1AA",
-          50: "#F5F5F7",
+          50: '#fafafa',
+          100: '#f5f5f5',
+          200: '#e5e5e5',
+          300: '#d4d4d4',
+          400: '#a3a3a3',
+          500: '#737373',
+          600: '#525252',
+          700: '#404040',
+          800: '#262626',
+          900: '#171717',
+          950: '#0a0a0a',
         },
         crimson: {
-          DEFAULT: "#EF233C",
-          hover: "#D91E35",
-          dark: "#B8172C",
-          glow: "rgba(239, 35, 60, 0.16)",
-          soft: "rgba(239, 35, 60, 0.08)",
-          muted: "rgba(239, 35, 60, 0.04)",
-        },
-      },
-      fontFamily: {
-        display: ["var(--font-manrope)", "system-ui", "sans-serif"],
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        mono: ["var(--font-jetbrains)", "monospace"],
-      },
-      borderRadius: {
-        pill: "9999px",
-        xl: "12px",
-        "2xl": "16px",
-        "3xl": "20px",
+          DEFAULT: '#EF233C',
+          hover: '#D90429',
+          dark: '#8B0000',
+          glow: 'rgba(239, 35, 60, 0.5)',
+          soft: 'rgba(239, 35, 60, 0.1)',
+          muted: '#2B0A0F',
+        }
       },
       boxShadow: {
-        glow: "0 0 20px rgba(239, 35, 60, 0.15)",
-        "glow-lg": "0 0 40px rgba(239, 35, 60, 0.2)",
-        "glow-sm": "0 0 10px rgba(239, 35, 60, 0.1)",
-        card: "0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2)",
+        'glow': '0 0 20px rgba(239, 35, 60, 0.3)',
+        'glow-lg': '0 0 30px rgba(239, 35, 60, 0.4)',
+        'glow-sm': '0 0 10px rgba(239, 35, 60, 0.2)',
+        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3)',
       },
       backgroundImage: {
-        "hero-glow":
-          "radial-gradient(ellipse 60% 50% at 50% 0%, rgba(239, 35, 60, 0.12) 0%, transparent 70%)",
+        'hero-glow': 'radial-gradient(circle at 50% 0%, var(--tw-gradient-stops))',
       },
       animation: {
-        "fade-in": "fadeIn 0.5s ease-out",
-        "fade-up": "fadeUp 0.6s ease-out",
-        "pulse-glow": "pulseGlow 3s ease-in-out infinite",
+        'fade-in': 'fadeIn 0.5s ease-out',
+        'fade-up': 'fadeUp 0.5s ease-out',
+        'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       keyframes: {
-        fadeIn: { "0%": { opacity: "0" }, "100%": { opacity: "1" } },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
         fadeUp: {
-          "0%": { opacity: "0", transform: "translateY(16px)" },
-          "100%": { opacity: "1", transform: "translateY(0)" },
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         pulseGlow: {
-          "0%, 100%": { boxShadow: "0 0 20px rgba(239, 35, 60, 0.1)" },
-          "50%": { boxShadow: "0 0 40px rgba(239, 35, 60, 0.25)" },
-        },
-      },
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.5' },
+        }
+      }
     },
   },
   plugins: [],
 };
-
 export default config;
