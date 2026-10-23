@@ -1,131 +1,136 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const registered = searchParams.get("registered");
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Login failed");
-        return;
-      }
-
-      const role = data.user?.role;
-      if (role === "ADMIN") {
-        router.push("/admin");
-      } else {
-        router.push("/dashboard");
-      }
-    } catch {
-      setError("Network error. Please try again.");
+      if (!res.ok) throw new Error(data.error || "Login failed");
+      router.push("/app/dashboard");
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">StaticFlow</h1>
-          <p className="text-gray-400 mt-2">Sign in to your account</p>
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--card-bg)] p-8 shadow-card">
+      <div className="text-center mb-8">
+        <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">
+          Welcome back
+        </h1>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
+          Sign in to your workspace
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-5 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400 flex items-start gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="mt-0.5 shrink-0">
+            <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+          </svg>
+          {error}
         </div>
+      )}
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-gray-900 border border-gray-800 rounded-xl p-8 space-y-5"
-        >
-          {registered && (
-            <div className="bg-green-900/30 border border-green-800 text-green-400 px-4 py-3 rounded-lg text-sm">
-              Account created! Please sign in.
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Email
-            </label>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[var(--text-primary)]">Email</label>
+          <div className="relative">
+            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input pl-10"
               placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Your password"
             />
           </div>
+        </div>
 
-          <div className="flex justify-end">
-            <Link
-              href="/forgot-password"
-              className="text-sm text-blue-400 hover:text-blue-300"
-            >
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Password</label>
+            <Link href="/forgot-password" className="text-xs text-crimson hover:underline font-medium">
               Forgot password?
             </Link>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition disabled:opacity-50"
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
-
-          <p className="text-center text-sm text-gray-400">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/signup"
-              className="text-blue-400 hover:text-blue-300"
+          <div className="relative">
+            <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="input pl-10 pr-10"
+              placeholder="Enter your password"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+              aria-label="Toggle password visibility"
             >
-              Sign up
-            </Link>
-          </p>
-        </form>
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-primary w-full mt-2"
+        >
+          {loading ? (
+            <>
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Signing in...
+            </>
+          ) : (
+            <>Sign In <ArrowRight size={16} /></>
+          )}
+        </button>
+      </form>
+
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-[var(--border)]" />
+        </div>
+        <div className="relative flex justify-center text-xs">
+          <span className="px-3 bg-[var(--card-bg)] text-[var(--text-muted)]">or</span>
+        </div>
       </div>
+
+      <p className="text-sm text-[var(--text-muted)] text-center">
+        Don&apos;t have an account?{" "}
+        <Link href="/signup" className="text-crimson hover:underline font-medium">
+          Sign up
+        </Link>
+      </p>
     </div>
   );
 }

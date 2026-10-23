@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Manrope, JetBrains_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import "./globals.css";
-import { AuthProvider } from "@/lib/auth-context";
-import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -10,10 +9,22 @@ const inter = Inter({
   display: "swap",
 });
 
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-manrope",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "StaticFlow — AI API Builder",
+  title: "StaticFlow — AI-Powered API Platform",
   description:
-    "Build, test, and deploy production-ready APIs with AI in seconds.",
+    "Build, test, and deploy APIs with AI. Generate backend code from natural language.",
   icons: { icon: "/favicon.ico" },
 };
 
@@ -23,12 +34,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${inter.variable} font-sans antialiased bg-[var(--bg)] text-[var(--text)]`}
-      >
-        <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${manrope.variable} ${jetbrainsMono.variable}`}
+    >
+      <body className="font-sans antialiased min-h-screen">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
         </ThemeProvider>
       </body>
     </html>

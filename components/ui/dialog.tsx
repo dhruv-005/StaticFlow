@@ -1,84 +1,81 @@
 "use client";
 
 import * as React from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useEffect, useRef } from "react";
 
-const Dialog = DialogPrimitive.Root;
-const DialogTrigger = DialogPrimitive.Trigger;
-const DialogPortal = DialogPrimitive.Portal;
-const DialogClose = DialogPrimitive.Close;
+interface DialogProps {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  description?: string;
+  children: React.ReactNode;
+  maxWidth?: string;
+}
 
-const DialogOverlay = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Overlay
-    ref={ref}
-    className={cn(
-      "fixed inset-0 z-50 bg-black/40 backdrop-blur-sm",
-      "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    )}
-    {...props}
-  />
-));
-DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
+export function Dialog({ open, onClose, title, description, children, maxWidth = "max-w-md" }: DialogProps) {
+  const overlayRef = useRef<HTMLDivElement>(null);
 
-const DialogContent = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%]",
-        "gap-4 border border-[var(--border)] bg-[var(--surface)] p-6 shadow-lg rounded-xl",
-        "duration-200",
-        "data-[state=open]:animate-in data-[state=closed]:animate-out",
-        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-        "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-        className
-      )}
-      {...props}
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+      const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+      window.addEventListener("keydown", handleEsc);
+      return () => { document.body.style.overflow = ""; window.removeEventListener("keydown", handleEsc); };
+    }
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-[var(--text-muted)] opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
-  </DialogPortal>
-));
-DialogContent.displayName = DialogPrimitive.Content.displayName;
+      <div className={`w-full ${maxWidth} rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-card animate-fade-up`}>
+        {title && (
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold font-display text-[var(--text-primary)]">{title}</h2>
+              {description && <p className="text-sm text-[var(--text-secondary)] mt-1">{description}</p>}
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] transition-colors"
+              aria-label="Close"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        )}
+        {children}
+      </div>
+    </div>
+  );
+}
 
-const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)} {...props} />
-);
-DialogHeader.displayName = "DialogHeader";
-
-const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
-);
-DialogFooter.displayName = "DialogFooter";
-
-const DialogTitle = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Title>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Title ref={ref} className={cn("text-lg font-semibold text-[var(--text)]", className)} {...props} />
-));
-DialogTitle.displayName = DialogPrimitive.Title.displayName;
-
-const DialogDescription = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Description>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Description ref={ref} className={cn("text-sm text-[var(--text-muted)]", className)} {...props} />
-));
-DialogDescription.displayName = DialogPrimitive.Description.displayName;
-
-export { Dialog, DialogPortal, DialogOverlay, DialogClose, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription };
+export function ConfirmDialog({
+  open, onClose, onConfirm, title, description,
+  confirmLabel = "Confirm", cancelLabel = "Cancel", danger = false, loading = false,
+}: {
+  open: boolean; onClose: () => void; onConfirm: () => void;
+  title: string; description: string;
+  confirmLabel?: string; cancelLabel?: string; danger?: boolean; loading?: boolean;
+}) {
+  return (
+    <Dialog open={open} onClose={onClose} title={title} description={description}>
+      <div className="flex justify-end gap-3 mt-6">
+        <button onClick={onClose} className="btn-secondary btn-sm">{cancelLabel}</button>
+        <button
+          onClick={onConfirm}
+          disabled={loading}
+          className={`btn-sm ${danger ? "bg-red-600 text-white hover:bg-red-700" : "btn-primary"}`}
+        >
+          {loading ? "Processing..." : confirmLabel}
+        </button>
+      </div>
+    </Dialog>
+  );
+}

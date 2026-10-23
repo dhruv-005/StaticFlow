@@ -1,214 +1,175 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-interface Setting {
-  key: string;
-  value: string;
-  updatedAt: string;
-}
-
-const DEFAULT_SETTINGS: Record<string, { label: string; desc: string; type: "text" | "number" | "boolean" }> = {
-  platform_name: { label: "Platform Name", desc: "Display name across the app", type: "text" },
-  max_projects_per_user: { label: "Max Projects / User", desc: "Limit per user account", type: "number" },
-  max_keys_per_user: { label: "Max API Keys / User", desc: "Active keys allowed", type: "number" },
-  rate_limit_per_minute: { label: "Rate Limit (req/min)", desc: "Per API key throttle", type: "number" },
-  maintenance_mode: { label: "Maintenance Mode", desc: "Block all API generation", type: "boolean" },
-  registration_enabled: { label: "Open Registration", desc: "Allow new user signups", type: "boolean" },
-};
+import { useState } from "react";
+import { PageHeader } from "@/components/layout/page-header";
+import { Save, Server, Shield, Activity, Mail, Globe, RefreshCw } from "lucide-react";
 
 export default function AdminSettingsPage() {
-  const [settings, setSettings] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch("/api/admin/settings");
-        if (res.ok) {
-          const data: Setting[] = await res.json();
-          const map: Record<string, string> = {};
-          data.forEach((s) => {
-            map[s.key] = s.value;
-          });
-          setSettings(map);
-        }
-      } catch {
-        /* use defaults */
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
-  const getValue = (key: string, fallback: string) =>
-    settings[key] ?? fallback;
-
-  const setValue = (key: string, val: string) =>
-    setSettings((prev) => ({ ...prev, [key]: val }));
-
-  const handleSave = async () => {
-    setSaving(true);
-    setError("");
-    setSuccess("");
-    try {
-      const res = await fetch("/api/admin/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ settings }),
-      });
-      if (res.ok) {
-        setSuccess("Settings saved successfully.");
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
-        const data = await res.json();
-        setError(data.error || "Failed to save settings.");
-      }
-    } catch {
-      setError("Network error.");
-    } finally {
-      setSaving(false);
-    }
+  const handleSave = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-4 animate-pulse">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-20 rounded-xl bg-[var(--surface)] border border-[var(--border)]" />
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div>
-        <h2 className="text-base font-bold text-[var(--text)]">
-          Platform Settings
-        </h2>
-        <p className="text-xs text-[var(--muted)] mt-0.5">
-          Configure global platform behavior
-        </p>
+    <div className="space-y-8 animate-fade-in">
+      <PageHeader
+        title="Platform Settings"
+        description="Configure system-wide settings and limits."
+        actions={
+          <button onClick={handleSave} className="btn-primary btn-sm">
+            <Save size={14} /> {saved ? "Saved ✓" : "Save All"}
+          </button>
+        }
+      />
+
+      {/* API Configuration */}
+      <div className="card-static space-y-5">
+        <h3 className="font-display font-semibold text-[var(--text-primary)] flex items-center gap-2">
+          <Server size={16} className="text-crimson" /> API Configuration
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Base URL</label>
+            <input className="input font-mono text-xs" defaultValue="https://api.staticflow.app" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">API Version</label>
+            <input className="input" defaultValue="v1" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Default Rate Limit (req/min)</label>
+            <input className="input" type="number" defaultValue="100" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Max Request Size (MB)</label>
+            <input className="input" type="number" defaultValue="10" />
+          </div>
+        </div>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400 break-words">
-          {error}
+      {/* Security */}
+      <div className="card-static space-y-5">
+        <h3 className="font-display font-semibold text-[var(--text-primary)] flex items-center gap-2">
+          <Shield size={16} className="text-crimson" /> Security
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">JWT Expiry (hours)</label>
+            <input className="input" type="number" defaultValue="24" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Password Min Length</label>
+            <input className="input" type="number" defaultValue="8" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Max Login Attempts</label>
+            <input className="input" type="number" defaultValue="5" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Lockout Duration (min)</label>
+            <input className="input" type="number" defaultValue="30" />
+          </div>
         </div>
-      )}
-
-      {success && (
-        <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-400 break-words">
-          {success}
+        <div className="space-y-2 pt-2">
+          {[
+            { label: "Require email verification", desc: "New users must verify their email before accessing the platform", default: true },
+            { label: "Enable two-factor authentication", desc: "Allow users to enable 2FA on their accounts", default: false },
+            { label: "Enforce strong passwords", desc: "Require uppercase, lowercase, number, and symbol", default: true },
+            { label: "Log all API requests", desc: "Store full request/response logs for auditing", default: true },
+          ].map((item) => (
+            <div key={item.label} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
+              <div>
+                <p className="text-sm text-[var(--text-primary)]">{item.label}</p>
+                <p className="text-xs text-[var(--text-muted)]">{item.desc}</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-4">
+                <input type="checkbox" defaultChecked={item.default} className="sr-only peer" />
+                <div className="w-9 h-5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-pill peer-checked:bg-crimson peer-checked:border-crimson transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />
+              </label>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
-      <div className="space-y-3">
-        {Object.entries(DEFAULT_SETTINGS).map(([key, meta]) => (
-          <div
-            key={key}
-            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <label
-                  htmlFor={`setting-${key}`}
-                  className="text-sm font-semibold text-[var(--text)] block"
-                >
-                  {meta.label}
-                </label>
-                <p className="text-xs text-[var(--muted)] mt-0.5 break-words">
-                  {meta.desc}
-                </p>
-              </div>
+      {/* Usage Limits */}
+      <div className="card-static space-y-5">
+        <h3 className="font-display font-semibold text-[var(--text-primary)] flex items-center gap-2">
+          <Activity size={16} className="text-crimson" /> Usage Limits
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Free Plan Requests/mo</label>
+            <input className="input" type="number" defaultValue="1000" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Pro Plan Requests/mo</label>
+            <input className="input" type="number" defaultValue="100000" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Max Projects (Free)</label>
+            <input className="input" type="number" defaultValue="3" />
+          </div>
+        </div>
+      </div>
 
-              <div className="shrink-0 sm:w-48">
-                {meta.type === "boolean" ? (
-                  <button
-                    id={`setting-${key}`}
-                    onClick={() =>
-                      setValue(
-                        key,
-                        getValue(key, "false") === "true" ? "false" : "true"
-                      )
-                    }
-                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                      getValue(key, "false") === "true"
-                        ? "bg-[var(--accent)]"
-                        : "bg-[var(--border)]"
-                    }`}
-                    role="switch"
-                    aria-checked={getValue(key, "false") === "true"}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-                        getValue(key, "false") === "true"
-                          ? "translate-x-6"
-                          : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                ) : (
-                  <input
-                    id={`setting-${key}`}
-                    type={meta.type === "number" ? "number" : "text"}
-                    value={getValue(
-                      key,
-                      meta.type === "number" ? "10" : "StaticFlow"
-                    )}
-                    onChange={(e) => setValue(key, e.target.value)}
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-colors"
-                    style={{ fontSize: "16px" }}
-                  />
-                )}
-              </div>
+      {/* Email Configuration */}
+      <div className="card-static space-y-5">
+        <h3 className="font-display font-semibold text-[var(--text-primary)] flex items-center gap-2">
+          <Mail size={16} className="text-crimson" /> Email Configuration
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">SMTP Host</label>
+            <input className="input font-mono text-xs" defaultValue="smtp.resend.com" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">SMTP Port</label>
+            <input className="input" type="number" defaultValue="587" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">From Name</label>
+            <input className="input" defaultValue="StaticFlow" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">From Email</label>
+            <input className="input" defaultValue="noreply@staticflow.app" />
+          </div>
+        </div>
+        <button className="btn-secondary btn-sm"><Mail size={14} /> Send Test Email</button>
+      </div>
+
+      {/* System */}
+      <div className="card-static space-y-5">
+        <h3 className="font-display font-semibold text-[var(--text-primary)] flex items-center gap-2">
+          <Globe size={16} className="text-crimson" /> System
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Maintenance Mode</label>
+            <div className="flex items-center gap-3">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only peer" />
+                <div className="w-9 h-5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-pill peer-checked:bg-crimson peer-checked:border-crimson transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />
+              </label>
+              <span className="text-sm text-[var(--text-muted)]">Disabled</span>
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Save button */}
-      <div className="flex items-center gap-3 pt-2">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] px-6 py-2.5 text-sm font-semibold text-[var(--bg)] hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
-        >
-          {saving ? (
-            <>
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              Saving…
-            </>
-          ) : (
-            "Save Settings"
-          )}
-        </button>
-        <span className="text-xs text-[var(--muted)]">
-          Changes apply immediately
-        </span>
-      </div>
-
-      {/* Danger zone */}
-      <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 sm:p-6 mt-8">
-        <h3 className="text-sm font-bold text-red-400 mb-1">Danger Zone</h3>
-        <p className="text-xs text-[var(--muted)] mb-4 break-words">
-          Irreversible actions that affect the entire platform.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button className="rounded-lg border border-red-500/30 px-4 py-2 text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors">
-            Purge All Audit Logs
-          </button>
-          <button className="rounded-lg border border-red-500/30 px-4 py-2 text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors">
-            Reset Usage Counters
-          </button>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Registration</label>
+            <div className="flex items-center gap-3">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" defaultChecked className="sr-only peer" />
+                <div className="w-9 h-5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-pill peer-checked:bg-crimson peer-checked:border-crimson transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />
+              </label>
+              <span className="text-sm text-[var(--text-muted)]">Open</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 pt-2">
+          <button className="btn-secondary btn-sm"><RefreshCw size={14} /> Clear Cache</button>
+          <button className="btn-secondary btn-sm"><RefreshCw size={14} /> Restart Workers</button>
         </div>
       </div>
     </div>

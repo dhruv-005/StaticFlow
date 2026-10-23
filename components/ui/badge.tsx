@@ -1,32 +1,53 @@
+
 import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@/lib/utils";
 
-const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
-  {
-    variants: {
-      variant: {
-        default: "border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text-muted)]",
-        accent: "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-text)]",
-        success: "border-transparent bg-[var(--success)]/10 text-[var(--success)]",
-        warning: "border-transparent bg-[var(--warning)]/10 text-[var(--warning)]",
-        destructive: "border-transparent bg-[var(--danger)]/10 text-[var(--danger)]",
-        outline: "border-[var(--border)] text-[var(--text-muted)]",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-    },
-  }
-);
+type Variant = "default" | "red" | "green" | "yellow" | "blue" | "purple";
 
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
-
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
+  variant?: Variant;
+  dot?: boolean;
 }
 
-export { Badge, badgeVariants };
+const styles: Record<Variant, string> = {
+  default: "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border)]",
+  red: "bg-crimson-soft text-crimson",
+  green: "bg-green-500/10 text-green-500",
+  yellow: "bg-yellow-500/10 text-yellow-500",
+  blue: "bg-blue-500/10 text-blue-400",
+  purple: "bg-purple-500/10 text-purple-400",
+};
+
+const dots: Record<Variant, string> = {
+  default: "bg-[var(--text-muted)]",
+  red: "bg-crimson",
+  green: "bg-green-500",
+  yellow: "bg-yellow-500",
+  blue: "bg-blue-400",
+  purple: "bg-purple-400",
+};
+
+export function Badge({ variant = "default", dot = false, className = "", children, ...props }: BadgeProps) {
+  return (
+    <span className={`badge ${styles[variant]} ${className}`} {...props}>
+      {dot && <span className={`w-1.5 h-1.5 rounded-full ${dots[variant]}`} />}
+      {children}
+    </span>
+  );
+}
+
+export function MethodBadge({ method, className = "" }: { method: string; className?: string }) {
+  const m = method.toUpperCase();
+  const map: Record<string, Variant> = { GET: "green", POST: "blue", PUT: "yellow", PATCH: "purple", DELETE: "red" };
+  return <Badge variant={map[m] || "default"} className={`font-mono text-[10px] tracking-wider ${className}`}>{m}</Badge>;
+}
+
+export function StatusBadge({ status, className = "" }: { status: string; className?: string }) {
+  const s = status.toLowerCase();
+  const map: Record<string, Variant> = {
+    active: "green", deployed: "green", success: "green", completed: "green",
+    pending: "yellow", building: "yellow", queued: "yellow",
+    failed: "red", error: "red", revoked: "red",
+    inactive: "default", draft: "default",
+  };
+  return <Badge variant={map[s] || "default"} dot className={className}>{status}</Badge>;
+}

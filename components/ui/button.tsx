@@ -1,58 +1,55 @@
 import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@/lib/utils";
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]",
-  {
-    variants: {
-      variant: {
-        default:
-          "bg-[var(--accent)] text-[var(--accent-text)] hover:opacity-90 shadow-sm",
-        destructive:
-          "bg-[var(--danger)] text-white hover:opacity-90",
-        outline:
-          "border border-[var(--border)] bg-transparent text-[var(--text)] hover:bg-[var(--surface-muted)]",
-        secondary:
-          "bg-[var(--surface-muted)] text-[var(--text)] hover:opacity-80",
-        ghost:
-          "text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--text)]",
-        link: "text-[var(--text)] underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-10 px-5 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-12 rounded-lg px-8 text-base",
-        icon: "h-10 w-10",
-        "icon-sm": "h-8 w-8",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-);
+type Variant = "primary" | "secondary" | "ghost" | "danger";
+type Size = "sm" | "md" | "lg";
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant;
+  size?: Size;
+  loading?: boolean;
+  glow?: boolean;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    );
-  }
-);
-Button.displayName = "Button";
+const variants: Record<Variant, string> = {
+  primary: "bg-crimson text-white hover:bg-crimson-hover hover:shadow-glow",
+  secondary: "bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] hover:border-crimson hover:bg-[var(--bg-elevated)]",
+  ghost: "text-[var(--text-secondary)] hover:bg-crimson-soft hover:text-crimson",
+  danger: "bg-red-600 text-white hover:bg-red-700",
+};
 
-export { Button, buttonVariants };
+const sizes: Record<Size, string> = {
+  sm: "px-3 py-1.5 text-xs rounded-lg gap-1.5",
+  md: "px-5 py-2.5 text-sm rounded-xl gap-2",
+  lg: "px-7 py-3.5 text-base rounded-2xl gap-2.5",
+};
+
+export function Button({
+  variant = "primary",
+  size = "md",
+  loading = false,
+  glow = false,
+  className = "",
+  disabled,
+  children,
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      className={`inline-flex items-center justify-center font-medium
+        transition-all duration-200 active:scale-[0.98]
+        disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none
+        ${variants[variant]} ${sizes[size]}
+        ${glow ? "shadow-glow animate-pulse-glow" : ""} ${className}`}
+      disabled={disabled || loading}
+      {...props}
+    >
+      {loading && (
+        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+      )}
+      {children}
+    </button>
+  );
+}

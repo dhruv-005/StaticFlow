@@ -1,27 +1,40 @@
 import * as React from "react";
-import { cn } from "@/lib/utils";
 
-export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {}
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  error?: string;
+  hint?: string;
+  icon?: React.ReactNode;
+}
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, ...props }, ref) => {
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ label, error, hint, icon, className = "", id, ...props }, ref) => {
+    const inputId = id || label?.toLowerCase().replace(/\s+/g, "-");
     return (
-      <input
-        type={type}
-        className={cn(
-          "flex h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]",
-          "focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1 focus:border-[var(--accent)]",
-          "disabled:cursor-not-allowed disabled:opacity-50",
-          "transition-colors duration-150",
-          className
+      <div className="flex flex-col gap-1.5 w-full">
+        {label && (
+          <label htmlFor={inputId} className="text-sm font-medium text-[var(--text-primary)]">
+            {label}
+          </label>
         )}
-        ref={ref}
-        {...props}
-      />
+        <div className="relative">
+          {icon && (
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+              {icon}
+            </div>
+          )}
+          <input
+            ref={ref}
+            id={inputId}
+            className={`input ${icon ? "pl-10" : ""}
+              ${error ? "border-red-500 focus:border-red-500" : ""} ${className}`}
+            {...props}
+          />
+        </div>
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        {hint && !error && <p className="text-xs text-[var(--text-muted)]">{hint}</p>}
+      </div>
     );
   }
 );
 Input.displayName = "Input";
-
-export { Input };
