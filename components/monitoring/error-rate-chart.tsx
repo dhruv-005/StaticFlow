@@ -1,56 +1,79 @@
 "use client";
 
-import { ShieldAlert, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertTriangle } from "lucide-react";
+
+interface ErrorBucket {
+  status: string;
+  count: number;
+}
 
 export function ErrorRateChart() {
-  const codes = [
-    { code: "200 OK", count: 84210, percent: 97.4, color: "bg-cyber-green text-cyber-green" },
-    { code: "201 Created", count: 1840, percent: 2.1, color: "bg-cyber-cyan text-cyber-cyan" },
-    { code: "400 Bad Request", count: 142, percent: 0.2, color: "bg-cyber-yellow text-cyber-yellow" },
-    { code: "401 / 403 Auth", count: 88, percent: 0.1, color: "bg-cyber-purple text-cyber-purple" },
-    { code: "500 Server Error", count: 6, percent: 0.01, color: "bg-cyber-red text-cyber-red" },
-  ];
+  const [data, setData] = useState<ErrorBucket[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/monitoring/stats")
+      .then((r) => r.json())
+      .then((d) => setData(d.errorRates || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const total = data.reduce((s, d) => s + d.count, 0);
+  const colors: Record<string, string> = {
+    "2xx": "bg-cyber-green",
+    "3xx": "bg-cyber-cyan",
+    "4xx": "bg-cyber-yellow",
+    "5xx": "bg-cyber-red",
+  };
+  const textColors: Record<string, string> = {
+    "2xx": "text-cyber-green",
+    "3xx": "text-cyber-cyan",
+    "4xx": "text-cyber-yellow",
+    "5xx": "text-cyber-red",
+  };
 
   return (
-    <div className="glass-card p-5 space-y-4">
-      {/* Title */}
-      <div className="flex items-center justify-between border-b border-cyber-white/5 pb-3">
-        <div className="flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-cyber-yellow" />
-          <h4 className="text-xs font-bold uppercase tracking-wider text-cyber-white">
-            Status Code Breakdown
-          </h4>
+    <div className="glass-card p-6 space-y-4">
+      <div className="flex items-center gap-2 border-b border-cyber-white/10 pb-3">
+        <AlertTriangle className="h-4 w-4 text-cyber-yellow" />
+        <h3 className="text-sm font-bold text-cyber-white font-mono">
+          Status Code Distribution (24h)
+        </h3>
+      </div>
+
+      {loading ? (
+        <div className="h-20 animate-pulse rounded-xl bg-cyber-white/5" />
+      ) : total === 0 ? (
+        <div className="flex h-20 items-center justify-center">
+          <p className="text-xs text-cyber-white/30 font-mono">
+            No requests in the last 24 hours.
+          </p>
         </div>
-        <span className="text-[10px] font-mono text-cyber-green">0.01% 5xx Failures</span>
-      </div>
-
-      {/* Progress Bar Breakdown */}
-      <div className="flex h-3 w-full overflow-hidden rounded-full bg-cyber-white/5">
-        {codes.map((c) => (
-          <div
-            key={c.code}
-            style={{ width: `${c.percent}%` }}
-            className={`h-full ${c.color.split(" ")[0]}`}
-            title={`${c.code}: ${c.percent}%`}
-          />
-        ))}
-      </div>
-
-      {/* Itemized List */}
-      <div className="space-y-2 pt-1">
-        {codes.map((c) => (
-          <div key={c.code} className="flex items-center justify-between text-xs font-mono">
-            <div className="flex items-center gap-2">
-              <span className={`h-2 w-2 rounded-full ${c.color.split(" ")[0]}`} />
-              <span className="text-cyber-white/70">{c.code}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-cyber-white/40">{c.count.toLocaleString()}</span>
-              <span className="font-bold text-cyber-white">{c.percent}%</span>
-            </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex h-6 rounded-full overflow-hidden bg-cyber-white/5">
+            {data.map((d) =>
+              d.count > 0 ? (
+                <div
+                  key={d.status}
+                  className={`${colors[d.status] || "bg-cyber-white/20"} transition-all`}
+                  style={{ width: `${(d.count / total) * 100}%` }}
+                />
+              ) : null
+            )}
           </div>
-        ))}
-      </div>
+          <div className="flex flex-wrap gap-4 text-xs font-mono">
+            {data.map((d) => (
+              <span key={d.status} className={textColors[d.status] || "text-cyber-white/40"}>
+                {d.status}: {d.count.toLocaleString()} (
+                {total > 0 ? Math.round((d.count / total) * 100) : 0}%)
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

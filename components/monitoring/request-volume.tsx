@@ -1,60 +1,74 @@
 "use client";
 
-import { BarChart3, TrendingUp, HardDrive } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BarChart3 } from "lucide-react";
+
+interface VolumePoint {
+  label: string;
+  count: number;
+}
 
 export function RequestVolume() {
-  const bars = [32, 45, 28, 55, 68, 85, 92, 110, 98, 75, 62, 88, 120, 140, 135, 115, 94, 78, 65, 82, 95, 108, 112, 90];
-  const max = Math.max(...bars);
+  const [data, setData] = useState<VolumePoint[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/monitoring/stats")
+      .then((r) => r.json())
+      .then((d) => {
+        setData(d.requestVolume || []);
+        setTotal(d.totalRequests || 0);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const max = Math.max(...data.map((d) => d.count), 1);
 
   return (
-    <div className="glass-card p-5 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-cyber-white/5 pb-3">
+    <div className="glass-card p-6 space-y-4">
+      <div className="flex items-center justify-between border-b border-cyber-white/10 pb-3">
         <div className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-cyber-purple" />
-          <h4 className="text-xs font-bold uppercase tracking-wider text-cyber-white">
-            Hourly Request Traffic &amp; Egress
-          </h4>
+          <BarChart3 className="h-4 w-4 text-cyber-cyan" />
+          <h3 className="text-sm font-bold text-cyber-white font-mono">
+            Request Volume (24h)
+          </h3>
         </div>
-        <span className="flex items-center gap-1 text-xs font-mono text-cyber-green">
-          <TrendingUp className="h-3.5 w-3.5" /> +14.2% Today
+        <span className="text-xs font-mono text-cyber-white/40">
+          {total.toLocaleString()} total
         </span>
       </div>
 
-      {/* Bar graph */}
-      <div className="flex items-end gap-1.5 h-32 pt-4">
-        {bars.map((val, idx) => {
-          const heightPercent = (val / max) * 100;
-          return (
-            <div key={idx} className="group relative flex-1 flex flex-col items-center h-full justify-end">
+      {loading ? (
+        <div className="h-28 animate-pulse rounded-xl bg-cyber-white/5" />
+      ) : total === 0 ? (
+        <div className="flex h-28 items-center justify-center">
+          <p className="text-xs text-cyber-white/30 font-mono">
+            No requests in the last 24 hours.
+          </p>
+        </div>
+      ) : (
+        <div className="flex items-end gap-1 h-28">
+          {data.map((d) => (
+            <div
+              key={d.label}
+              className="flex flex-1 flex-col items-center gap-0.5"
+            >
               <div
-                style={{ height: `${heightPercent}%` }}
-                className="w-full rounded-t-[2px] bg-gradient-to-t from-cyber-purple/20 to-cyber-purple/80 hover:to-cyber-cyan transition-all"
+                className="w-full rounded-t-sm bg-cyber-cyan/50"
+                style={{
+                  height: `${Math.max((d.count / max) * 100, 2)}%`,
+                  minHeight: "2px",
+                }}
               />
-              {/* Tooltip */}
-              <div className="absolute -top-8 hidden group-hover:block rounded bg-cyber-navy border border-cyber-white/10 px-1.5 py-0.5 text-[9px] font-mono text-cyber-white z-20 whitespace-nowrap">
-                {val * 100} reqs
-              </div>
+              <span className="text-[7px] font-mono text-cyber-white/20 rotate-45 origin-top-left">
+                {d.label}
+              </span>
             </div>
-          );
-        })}
-      </div>
-
-      {/* Bottom stats */}
-      <div className="grid grid-cols-3 gap-2 border-t border-cyber-white/5 pt-3 text-xs font-mono">
-        <div>
-          <p className="text-cyber-white/40">Total Requests</p>
-          <p className="text-base font-bold text-cyber-white">2.41M / day</p>
+          ))}
         </div>
-        <div>
-          <p className="text-cyber-white/40">Peak Egress</p>
-          <p className="text-base font-bold text-cyber-purple">14.8 MB/s</p>
-        </div>
-        <div>
-          <p className="text-cyber-white/40">Bandwidth (24h)</p>
-          <p className="text-base font-bold text-cyber-cyan">34.2 GB</p>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,115 +1,100 @@
 "use client";
 
-import {
-  Code2,
-  Shield,
-  Activity,
-  Rocket,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { FolderCode, Activity, Clock, Key } from "lucide-react";
 
-type TrendType = "up" | "down" | "neutral";
-
-interface StatItem {
-  label: string;
-  value: string;
-  change: string;
-  trend: TrendType;
-  icon: any;
-  color: string;
-  bg: string;
-  border: string;
-}
-
-const stats: StatItem[] = [
-  {
-    label: "Total APIs",
-    value: "12",
-    change: "+3",
-    trend: "up",
-    icon: Code2,
-    color: "text-cyber-cyan",
-    bg: "bg-cyber-cyan/5",
-    border: "border-cyber-cyan/10",
-  },
-  {
-    label: "Security Score",
-    value: "A+",
-    change: "95/100",
-    trend: "up",
-    icon: Shield,
-    color: "text-cyber-green",
-    bg: "bg-cyber-green/5",
-    border: "border-cyber-green/10",
-  },
-  {
-    label: "Avg Response",
-    value: "42ms",
-    change: "-8ms",
-    trend: "up",
-    icon: Activity,
-    color: "text-cyber-purple",
-    bg: "bg-cyber-purple/5",
-    border: "border-cyber-purple/10",
-  },
-  {
-    label: "Deployments",
-    value: "28",
-    change: "0",
-    trend: "neutral",
-    icon: Rocket,
-    color: "text-cyber-pink",
-    bg: "bg-cyber-pink/5",
-    border: "border-cyber-pink/10",
-  },
-];
-
-function TrendIcon({ trend }: { trend: TrendType }) {
-  if (trend === "up") return <TrendingUp className="h-3 w-3 text-cyber-green" />;
-  if (trend === "down") return <TrendingDown className="h-3 w-3 text-cyber-red" />;
-  return <Minus className="h-3 w-3 text-cyber-white/30" />;
+interface Stats {
+  totalProjects: number;
+  totalCalls: number;
+  avgLatency: number;
+  activeKeys: number;
 }
 
 export function StatsCards() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/overview")
+      .then((r) => r.json())
+      .then((data) =>
+        setStats({
+          totalProjects: data.totalProjects ?? 0,
+          totalCalls: data.totalCalls ?? 0,
+          avgLatency: data.avgLatency ?? 0,
+          activeKeys: data.activeKeys ?? 0,
+        })
+      )
+      .catch(() =>
+        setStats({ totalProjects: 0, totalCalls: 0, avgLatency: 0, activeKeys: 0 })
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
+  const cards = [
+    {
+      label: "API Projects",
+      value: stats?.totalProjects ?? 0,
+      suffix: "",
+      icon: FolderCode,
+      color: "text-cyber-cyan",
+      bg: "bg-cyber-cyan/10 border-cyber-cyan/30",
+    },
+    {
+      label: "Total API Calls",
+      value: stats?.totalCalls ?? 0,
+      suffix: "",
+      icon: Activity,
+      color: "text-cyber-green",
+      bg: "bg-cyber-green/10 border-cyber-green/30",
+    },
+    {
+      label: "Avg Latency",
+      value: stats?.avgLatency ?? 0,
+      suffix: "ms",
+      icon: Clock,
+      color: "text-cyber-purple",
+      bg: "bg-cyber-purple/10 border-cyber-purple/30",
+    },
+    {
+      label: "Active Keys",
+      value: stats?.activeKeys ?? 0,
+      suffix: "",
+      icon: Key,
+      color: "text-cyber-pink",
+      bg: "bg-cyber-pink/10 border-cyber-pink/30",
+    },
+  ];
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {stats.map((stat) => (
+      {cards.map((c) => (
         <div
-          key={stat.label}
-          className={`glass-card p-5 transition-all duration-300 hover:scale-[1.02] ${stat.border}`}
+          key={c.label}
+          className="glass-card p-5 border-cyber-white/10 space-y-3"
         >
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-cyber-white/40 uppercase tracking-wider">
-                {stat.label}
-              </p>
-              <p className={`mt-2 text-3xl font-black ${stat.color}`}>
-                {stat.value}
-              </p>
-            </div>
-            <div
-              className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.bg} border ${stat.border}`}
-            >
-              <stat.icon className={`h-5 w-5 ${stat.color}`} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-1.5">
-            <TrendIcon trend={stat.trend} />
-            <span
-              className={`text-xs font-medium ${
-                stat.trend === "up"
-                  ? "text-cyber-green"
-                  : stat.trend === "down"
-                  ? "text-cyber-red"
-                  : "text-cyber-white/30"
-              }`}
-            >
-              {stat.change}
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-cyber-white/40">
+              {c.label}
             </span>
-            <span className="text-xs text-cyber-white/20">vs last week</span>
+            <div
+              className={`flex h-8 w-8 items-center justify-center rounded-lg border ${c.bg}`}
+            >
+              <c.icon className={`h-4 w-4 ${c.color}`} />
+            </div>
           </div>
+          {loading ? (
+            <div className="h-7 w-16 animate-pulse rounded bg-cyber-white/10" />
+          ) : (
+            <p className={`text-2xl font-bold font-mono ${c.color}`}>
+              {c.value.toLocaleString()}
+              {c.suffix && (
+                <span className="text-sm text-cyber-white/40 ml-1">
+                  {c.suffix}
+                </span>
+              )}
+            </p>
+          )}
         </div>
       ))}
     </div>

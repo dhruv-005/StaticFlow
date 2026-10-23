@@ -1,102 +1,74 @@
 "use client";
 
-import { useState } from "react";
-import { Activity, Clock, TrendingDown, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { TrendingUp } from "lucide-react";
 
-const timeRanges = ["1H", "6H", "24H", "7D", "30D"];
-
-const chartData = [
-  { time: "00:00", response: 45, requests: 120 },
-  { time: "03:00", response: 38, requests: 45 },
-  { time: "06:00", response: 42, requests: 80 },
-  { time: "09:00", response: 55, requests: 340 },
-  { time: "12:00", response: 62, requests: 520 },
-  { time: "15:00", response: 48, requests: 410 },
-  { time: "18:00", response: 52, requests: 380 },
-  { time: "21:00", response: 41, requests: 200 },
-  { time: "Now", response: 39, requests: 150 },
-];
-
-const maxResponse = Math.max(...chartData.map((d) => d.response));
+interface ChartPoint {
+  label: string;
+  calls: number;
+}
 
 export function PerformanceChart() {
-  const [activeRange, setActiveRange] = useState("24H");
+  const [chartData, setChartData] = useState<ChartPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/overview")
+      .then((r) => r.json())
+      .then((data) => setChartData(data.chartData || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const maxCalls = Math.max(...chartData.map((d) => d.calls), 1);
+  const totalWeek = chartData.reduce((s, d) => s + d.calls, 0);
 
   return (
-    <div className="glass-card">
-      {/* Header */}
-      <div className="flex flex-col gap-4 border-b border-cyber-white/5 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="glass-card p-6 space-y-4">
+      <div className="flex items-center justify-between border-b border-cyber-white/10 pb-3">
         <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-cyber-purple" />
-          <h2 className="font-bold text-cyber-white">Performance Overview</h2>
+          <TrendingUp className="h-4 w-4 text-cyber-green" />
+          <h3 className="text-sm font-bold text-cyber-white font-mono">
+            7-Day API Traffic
+          </h3>
         </div>
-        <div className="flex gap-1 rounded-lg border border-cyber-white/10 bg-cyber-white/[0.02] p-1">
-          {timeRanges.map((range) => (
-            <button
-              key={range}
-              onClick={() => setActiveRange(range)}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
-                activeRange === range
-                  ? "bg-cyber-cyan/10 text-cyber-cyan"
-                  : "text-cyber-white/30 hover:text-cyber-white/60"
-              }`}
+        <span className="text-xs font-mono text-cyber-white/40">
+          {totalWeek.toLocaleString()} calls this week
+        </span>
+      </div>
+
+      {loading ? (
+        <div className="h-32 animate-pulse rounded-xl bg-cyber-white/5" />
+      ) : chartData.length === 0 || totalWeek === 0 ? (
+        <div className="flex h-32 items-center justify-center">
+          <p className="text-xs text-cyber-white/30 font-mono">
+            No API traffic recorded yet.
+          </p>
+        </div>
+      ) : (
+        <div className="flex items-end gap-2 h-32">
+          {chartData.map((d) => (
+            <div
+              key={d.label}
+              className="flex flex-1 flex-col items-center gap-1"
             >
-              {range}
-            </button>
+              <span className="text-[9px] font-mono text-cyber-white/40">
+                {d.calls}
+              </span>
+              <div
+                className="w-full rounded-t-md bg-cyber-cyan/60 transition-all"
+                style={{
+                  height: `${Math.max((d.calls / maxCalls) * 100, 4)}%`,
+                  minHeight: "4px",
+                }}
+              />
+              <span className="text-[9px] font-mono text-cyber-white/30">
+                {d.label}
+              </span>
+            </div>
           ))}
         </div>
-      </div>
-
-      {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-4 border-b border-cyber-white/5 px-6 py-4">
-        <div>
-          <p className="text-xs text-cyber-white/30">Avg Response</p>
-          <p className="mt-1 text-xl font-black text-cyber-cyan">42ms</p>
-        </div>
-        <div>
-          <p className="text-xs text-cyber-white/30">P95 Latency</p>
-          <p className="mt-1 text-xl font-black text-cyber-purple">89ms</p>
-        </div>
-        <div>
-          <p className="text-xs text-cyber-white/30">Throughput</p>
-          <p className="mt-1 text-xl font-black text-cyber-green">1.2K/s</p>
-        </div>
-      </div>
-
-      {/* Chart Area (CSS-based bar chart) */}
-      <div className="px-6 py-6">
-        <div className="flex items-end gap-2 h-40">
-          {chartData.map((point, i) => {
-            const height = (point.response / maxResponse) * 100;
-            return (
-              <div
-                key={i}
-                className="group relative flex flex-1 flex-col items-center gap-1"
-              >
-                {/* Tooltip */}
-                <div className="absolute -top-10 left-1/2 -translate-x-1/2 hidden group-hover:block
-                                rounded-lg border border-cyber-white/10 bg-cyber-navy px-2 py-1
-                                text-[10px] text-cyber-white shadow-lg z-10 whitespace-nowrap">
-                  {point.response}ms · {point.requests} req
-                </div>
-
-                {/* Bar */}
-                <div
-                  className="w-full rounded-t-sm bg-gradient-to-t from-cyber-cyan/20 to-cyber-cyan/60
-                             transition-all duration-500 hover:from-cyber-cyan/40 hover:to-cyber-cyan/80
-                             min-h-[4px]"
-                  style={{ height: `${height}%` }}
-                />
-
-                {/* Label */}
-                <span className="text-[9px] text-cyber-white/20 mt-1">
-                  {point.time}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
