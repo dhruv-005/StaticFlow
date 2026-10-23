@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db/prisma";
 import { requireAuth, createAuditLog, trackUsage } from "@/lib/auth";
+import { createEntity } from "@/lib/render-client";
 import crypto from "crypto";
 
 function parseRecordCount(prompt: string): number {
@@ -20,17 +20,21 @@ function parseRecordCount(prompt: string): number {
 }
 
 function extractCode(text: string): string {
-  const fence = text.match(/```(?:python|js|javascript|ts|typescript|json)?\s*\n([\s\S]*?)```/);
+  const fence = text.match(
+    /```(?:python|js|javascript|ts|typescript|json)?\s*\n([\s\S]*?)```/
+  );
   if (fence) return fence[1].trim();
   return text.trim();
 }
 
 function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40) || "api";
+  return (
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 40) || "api"
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -41,18 +45,27 @@ export async function POST(req: NextRequest) {
     const prompt = (body.prompt || "").trim();
 
     if (!prompt) {
-      return NextResponse.json({ error: "Prompt is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Prompt is required." },
+        { status: 400 }
+      );
     }
 
     if (prompt.length > 2000) {
-      return NextResponse.json({ error: "Prompt must be under 2000 characters." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Prompt must be under 2000 characters." },
+        { status: 400 }
+      );
     }
 
     const recordCount = parseRecordCount(prompt);
     const groqKey = process.env.GROQ_API_KEY;
 
     if (!groqKey) {
-      return NextResponse.json({ error: "AI service not configured." }, { status: 500 });
+      return NextResponse.json(
+        { error: "AI service not configured." },
+        { status: 500 }
+      );
     }
 
     const systemPrompt = `You are an expert API developer. Generate a complete, production-ready Python FastAPI endpoint based on the user's description.
@@ -92,42 +105,43 @@ RULES:
     if (!aiRes.ok) {
       const errText = await aiRes.text();
       console.error("Groq error:", errText);
-      return NextResponse.json({ error: "AI generation failed. Please try again." }, { status: 502 });
+      return NextResponse.json(
+        { error: "AI generation failed. Please try again." },
+        { status: 502 }
+      );
     }
 
     const aiData = await aiRes.json();
-    const rawCode = aiData.choices?.[0]?.message?.content || "No code generated.";
+    const rawCode =
+      aiData.choices?.[0]?.message?.content || "No code generated.";
     const code = extractCode(rawCode);
 
     const slug = slugify(prompt);
     const projectId = crypto.randomUUID().slice(0, 8);
-    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://staticflow.onrender.com";
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      "https://staticflow.onrender.com";
     const endpoint = `${baseUrl}/api/v1/${slug}-${projectId}/data`;
     const apiKeyValue = `sf_live_${crypto.randomBytes(24).toString("hex")}`;
 
-    const project = await prisma.project.create({
-      data: {
-        name: prompt.slice(0, 80),
-        description: prompt,
-        endpoint,
-        code,
-        userId: session.id,
-      },
+    const project = await createEntity("projects", {
+      name: prompt.slice(0, 80),
+      description: `${prompt}\n\n---ENDPOINT---\n${endpoint}\n\n---CODE---\n${code}`,
+      value: recordCount,
+      category: "API",
     });
 
-    const apiKey = await prisma.apiKey.create({
-      data: {
-        key: apiKeyValue,
-        name: `${project.name} Key`,
-        userId: session.id,
-        projectId: project.id,
-      },
+    const apiKey = await createEntity("apikeys", {
+      name: apiKeyValue,
+      description: `${prompt.slice(0, 80)} Key`,
+      value: project?.id || 0,
+      category: "ACTIVE",
     });
 
     await createAuditLog(
       session.id,
       "GENERATE",
-      `Generated API: ${project.name} (${recordCount} records)`,
+      `Generated API: ${prompt.slice(0, 40)} (${recordCount} records)`,
       req
     );
 
@@ -137,13 +151,16 @@ RULES:
       code,
       endpoint,
       apiKey: apiKeyValue,
-      projectId: project.id,
+      projectId: project?.id || projectId,
       message: `API generated with ${recordCount} records. Your live endpoint is ready!`,
     });
   } catch (err: any) {
     if (err.message === "UNAUTHORIZED")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     console.error("Generate error:", err);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error." },
+      { status: 500 }
+    );
   }
 }

@@ -1,20 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db/prisma";
 import { requireAdmin, createAuditLog } from "@/lib/auth";
+import {
+  getEntities,
+  updateEntity,
+  createEntity,
+} from "@/lib/render-client";
 
 export async function GET(req: NextRequest) {
   try {
     await requireAdmin(req);
-    const settings = await db.systemSetting.findMany({
-      orderBy: { key: "asc" },
-    });
+    const res = await getEntities("systemsettings", 1000);
+    const settings = res.data.map((s: any) => ({
+      id: s.id,
+      key: s.name || s.id.toString(),
+      value: s.description || s.value?.toString() || "",
+      updatedAt: s.createdAt,
+    }));
     return NextResponse.json(settings);
   } catch (err: any) {
     if (err.message === "UNAUTHORIZED")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (err.message === "FORBIDDEN")
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error." },
+      { status: 500 }
+    );
   }
 }
 
@@ -25,18 +36,27 @@ export async function PUT(req: NextRequest) {
     const settings = body.settings as Record<string, string>;
 
     if (!settings || typeof settings !== "object") {
-      return NextResponse.json({ error: "Invalid settings object." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid settings object." },
+        { status: 400 }
+      );
     }
 
-    const ops = Object.entries(settings).map(([key, value]) =>
-      db.systemSetting.upsert({
-        where: { key },
-        update: { value: String(value) },
-        create: { key, value: String(value) },
-      })
-    );
-
-    await db.$transaction(ops);
+    const res = await getEntities("systemsettings", 1000);
+    for (const [key, value] of Object.entries(settings)) {
+      const existing = res.data.find((s: any) => s.name === key);
+      if (existing) {
+        await updateEntity("systemsettings", existing.id, {
+          name: key,
+          description: String(value),
+        });
+      } else {
+        await createEntity("systemsettings", {
+          name: key,
+          description: String(value),
+        });
+      }
+    }
 
     await createAuditLog(
       session.id,
@@ -51,6 +71,9 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (err.message === "FORBIDDEN")
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error." },
+      { status: 500 }
+    );
   }
 }

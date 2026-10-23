@@ -1,19 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { db } from "@/lib/db/prisma";
+import { getEntities } from "@/lib/render-client";
+
+function deriveStatus(value: number): number {
+  if (value > 90) return 500;
+  if (value > 70) return 404;
+  if (value > 50) return 301;
+  return 200;
+}
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await requireAuth(req);
-    const userId = session.id;
+    await requireAuth(req);
+
+    const res = await getEntities("usagerecords", 10000);
+    const records = res.data.map((r: any) => {
+      const created = new Date(r.createdAt);
+      const latency = Math.round(r.value || 0);
+      const status = deriveStatus(r.value || 0);
+      return {
+        id: r.id,
+        endpoint: r.category || "/api/unknown",
+        method: (r.name || "GET").toUpperCase(),
+        status,
+        latency,
+        createdAt: created,
+        hourKey: `${String(created.getHours()).padStart(2, "0")}:00`,
+      };
+    });
 
     const dayAgo = new Date();
     dayAgo.setHours(dayAgo.getHours() - 24);
-
-    const records = await db.usageRecord.findMany({
-      where: { userId, createdAt: { gte: dayAgo } },
-      orderBy: { createdAt: "asc" },
-    });
+    const recent = records.filter((r: any) => r.createdAt >= dayAgo);
 
     const volumeMap: Record<string, number> = {};
     for (let i = 23; i >= 0; i--) {
@@ -36,16 +54,17 @@ export async function GET(req: NextRequest) {
       "5xx": 0,
     };
 
-    for (const r of records) {
-      const hk = `${String(r.createdAt.getHours()).padStart(2, "0")}:00`;
-      if (volumeMap[hk] !== undefined) volumeMap[hk]++;
+    for (const r of recent) {
+      if (volumeMap[r.hourKey] !== undefined) volumeMap[r.hourKey]++;
 
       const lKeys = Object.keys(latencyMap);
       const closest = lKeys.reduce((prev, curr) => {
         const pH = parseInt(prev);
         const cH = parseInt(curr);
-        const rH = r.createdAt.getHours();
-        return Math.abs(cH - rH) < Math.abs(pH - rH) ? curr : prev;
+        return Math.abs(cH - r.createdAt.getHours()) <
+          Math.abs(pH - r.createdAt.getHours())
+          ? curr
+          : prev;
       });
       latencyMap[closest]?.push(r.latency);
 
@@ -53,43 +72,44 @@ export async function GET(req: NextRequest) {
       if (errorCounts[sg] !== undefined) errorCounts[sg]++;
     }
 
-    const requestVolume = Object.entries(volumeMap).map(([label, count]) => ({
-      label,
-      count,
-    }));
+    const requestVolume = Object.entries(volumeMap).map(
+      ([label, count]) => ({ label, count })
+    );
 
-    const responseTime = Object.entries(latencyMap).map(([label, lats]) => {
-      if (!lats.length) return { label, p50: 0, p95: 0, p99: 0 };
-      const s = [...lats].sort((a, b) => a - b);
-      return {
-        label,
-        p50: Math.round(s[Math.floor(s.length * 0.5)] || 0),
-        p95: Math.round(s[Math.floor(s.length * 0.95)] || 0),
-        p99: Math.round(s[Math.floor(s.length * 0.99)] || 0),
-      };
-    });
+    const responseTime = Object.entries(latencyMap).map(
+      ([label, lats]) => {
+        if (!lats.length) return { label, p50: 0, p95: 0, p99: 0 };
+        const s = [...lats].sort((a, b) => a - b);
+        return {
+          label,
+          p50: Math.round(s[Math.floor(s.length * 0.5)] || 0),
+          p95: Math.round(s[Math.floor(s.length * 0.95)] || 0),
+          p99: Math.round(s[Math.floor(s.length * 0.99)] || 0),
+        };
+      }
+    );
 
-    const errorRates = Object.entries(errorCounts).map(([status, count]) => ({
-      status,
-      count,
-    }));
+    const errorRates = Object.entries(errorCounts).map(
+      ([status, count]) => ({ status, count })
+    );
 
-    const logs = await db.usageRecord.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      select: {
-        id: true,
-        endpoint: true,
-        method: true,
-        status: true,
-        latency: true,
-        createdAt: true,
-      },
-    });
+    const logs = records
+      .sort(
+        (a: any, b: any) =>
+          b.createdAt.getTime() - a.createdAt.getTime()
+      )
+      .slice(0, 50)
+      .map((r: any) => ({
+        id: r.id,
+        endpoint: r.endpoint,
+        method: r.method,
+        status: r.status,
+        latency: r.latency,
+        createdAt: r.createdAt.toISOString(),
+      }));
 
     return NextResponse.json({
-      totalRequests: records.length,
+      totalRequests: recent.length,
       requestVolume,
       responseTime,
       errorRates,

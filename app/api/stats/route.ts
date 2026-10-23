@@ -1,39 +1,35 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db/prisma";
+import { getEntities } from "@/lib/render-client";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const [projectsRes, usersRes, usageRes, keysRes] = await Promise.all([
+      getEntities("projects", 1),
+      getEntities("users", 1),
+      getEntities("usagerecords", 10000),
+      getEntities("apikeys", 1),
+    ]);
 
-    const [totalProjects, totalUsers, totalApiCalls, totalKeys] =
-      await Promise.all([
-        prisma.project.count(),
-        prisma.user.count(),
-        prisma.usageRecord.count(),
-        prisma.apiKey.count(),
-      ]);
+    const totalProjects = projectsRes.total;
+    const totalUsers = usersRes.total;
+    const totalApiCalls = usageRes.total;
+    const totalKeys = keysRes.total;
 
-    /* Uptime = success rate (2xx/3xx) in last 30 days */
-    const statusRows = await prisma.$queryRaw<
-      { status: number; count: bigint }[]
-    >`
-      SELECT status, COUNT(*) as count
-      FROM "UsageRecord"
-      WHERE "createdAt" >= ${thirtyDaysAgo}
-      GROUP BY status
-    `;
-    const totalRecent = statusRows.reduce(
-      (s, r) => s + Number(r.count),
-      0
+    const thirtyDaysAgo = new Date(
+      Date.now() - 30 * 24 * 60 * 60 * 1000
     );
-    const successCount = statusRows
-      .filter((r) => r.status >= 200 && r.status < 400)
-      .reduce((s, r) => s + Number(r.count), 0);
+    const recentUsage = usageRes.data.filter(
+      (u: any) => new Date(u.createdAt) >= thirtyDaysAgo
+    );
+
+    const successCount = recentUsage.filter(
+      (u: any) => u.value >= 0 && u.value < 400
+    ).length;
     const uptime =
-      totalRecent > 0
-        ? Math.round((successCount / totalRecent) * 10000) / 100
+      recentUsage.length > 0
+        ? Math.round((successCount / recentUsage.length) * 10000) / 100
         : 99.9;
 
     return NextResponse.json({

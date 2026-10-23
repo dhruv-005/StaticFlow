@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { db } from "@/lib/db/prisma";
+import { getEntities } from "@/lib/render-client";
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,33 +9,26 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const page = parseInt(url.searchParams.get("page") || "1");
     const limit = parseInt(url.searchParams.get("limit") || "50");
-    const action = url.searchParams.get("action") || "";
+    const offset = (page - 1) * limit;
 
-    const where: any = {};
-    if (action) where.action = action;
+    const res = await getEntities("auditlogs", limit, offset);
 
-    const [logs, total] = await Promise.all([
-      db.auditLog.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          user: {
-            select: { name: true, email: true, role: true },
-          },
-        },
-      }),
-      db.auditLog.count({ where }),
-    ]);
+    const logs = res.data.map((log: any) => ({
+      id: log.id,
+      action: log.name || "UNKNOWN",
+      details: log.description || "",
+      userName: log.category || "System",
+      createdAt: log.createdAt,
+      ipAddress: "—",
+    }));
 
     return NextResponse.json({
       logs,
       pagination: {
-        total,
+        total: res.total,
         page,
         limit,
-        pages: Math.ceil(total / limit),
+        pages: Math.ceil(res.total / limit),
       },
     });
   } catch (error: any) {

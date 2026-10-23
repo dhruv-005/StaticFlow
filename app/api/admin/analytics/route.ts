@@ -1,124 +1,92 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { getEntities } from "@/lib/render-client";
 
 export async function GET(req: NextRequest) {
   try {
     await requireAdmin(req);
 
+    const [usersRes, projectsRes, keysRes, usageRes] = await Promise.all([
+      getEntities("users", 10000),
+      getEntities("projects", 10000),
+      getEntities("apikeys", 10000),
+      getEntities("usagerecords", 10000),
+    ]);
+
+    const users = usersRes.data;
+    const usage = usageRes.data;
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const todayStart = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const totalUsers = usersRes.total;
+    const totalProjects = projectsRes.total;
+    const totalKeys = keysRes.total;
+    const totalRequests = usageRes.total;
+
+    const newUsersToday = users.filter(
+      (u: any) => new Date(u.createdAt) >= todayStart
+    ).length;
+
+    const avgLatency =
+      usage.length > 0
+        ? Math.round(
+            usage.reduce((s: number, u: any) => s + (u.value || 0), 0) /
+              usage.length
+          )
+        : 0;
+
+    const recentUsage = usage.filter(
+      (u: any) => new Date(u.createdAt) >= sevenDaysAgo
     );
+    const activeUsers = new Set(recentUsage.map((u: any) => u.category)).size;
 
-    const [
-      totalUsers,
-      totalProjects,
-      totalKeys,
-      totalRequests,
-      newUsersToday,
-      avgLatencyResult,
-      topEndpoints,
-    ] = await Promise.all([
-      prisma.user.count(),
-      prisma.project.count(),
-      prisma.apiKey.count(),
-      prisma.usageRecord.count(),
-      prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
-      prisma.usageRecord.aggregate({ _avg: { latency: true } }),
-      prisma.$queryRaw<{ endpoint: string; count: bigint }[]>`
-        SELECT endpoint, COUNT(*) as count
-        FROM "UsageRecord"
-        GROUP BY endpoint
-        ORDER BY count DESC
-        LIMIT 10
-      `,
-    ]);
+    const endpointMap: Record<string, number> = {};
+    for (const u of usage) {
+      const ep = u.category || "unknown";
+      endpointMap[ep] = (endpointMap[ep] || 0) + 1;
+    }
+    const topEndpoints = Object.entries(endpointMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([endpoint, count]) => ({ endpoint, count }));
 
-    /* Active users (distinct users with usage in last 7 days) */
-    const activeUsersResult = await prisma.$queryRaw<{ count: bigint }[]>`
-      SELECT COUNT(DISTINCT "userId") as count
-      FROM "UsageRecord"
-      WHERE "createdAt" >= ${sevenDaysAgo}
-    `;
-    const activeUsers = Number(activeUsersResult[0]?.count ?? 0);
-
-    /* Hourly distribution (last 30 days) */
-    const hourlyResult = await prisma.$queryRaw<
-      { hour: number; count: bigint }[]
-    >`
-      SELECT EXTRACT(HOUR FROM "createdAt")::int as hour, COUNT(*) as count
-      FROM "UsageRecord"
-      WHERE "createdAt" >= ${thirtyDaysAgo}
-      GROUP BY EXTRACT(HOUR FROM "createdAt")
-      ORDER BY hour
-    `;
     const hourlyMap: Record<number, number> = {};
     for (let h = 0; h < 24; h++) hourlyMap[h] = 0;
-    for (const r of hourlyResult) hourlyMap[r.hour] = Number(r.count);
+    for (const u of recentUsage) {
+      hourlyMap[new Date(u.createdAt).getHours()]++;
+    }
     const hourlyDistribution = Object.entries(hourlyMap).map(
       ([hour, count]) => ({ hour: parseInt(hour), count })
     );
 
-    /* 30-day requests chart */
-    const chartResult = await prisma.$queryRaw<
-      { date: string; count: bigint }[]
-    >`
-      SELECT DATE("createdAt")::text as date, COUNT(*) as count
-      FROM "UsageRecord"
-      WHERE "createdAt" >= ${thirtyDaysAgo}
-      GROUP BY DATE("createdAt")
-      ORDER BY date
-    `;
-
-    /* 30-day new-users chart */
-    const usersChartResult = await prisma.$queryRaw<
-      { date: string; count: bigint }[]
-    >`
-      SELECT DATE("createdAt")::text as date, COUNT(*) as count
-      FROM "User"
-      WHERE "createdAt" >= ${thirtyDaysAgo}
-      GROUP BY DATE("createdAt")
-      ORDER BY date
-    `;
-
     const chartMap: Record<string, { requests: number; users: number }> = {};
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-      const key = d.toISOString().split("T")[0];
-      chartMap[key] = { requests: 0, users: 0 };
+      chartMap[d.toISOString().split("T")[0]] = { requests: 0, users: 0 };
     }
-    for (const r of chartResult)
-      if (chartMap[r.date]) chartMap[r.date].requests = Number(r.count);
-    for (const r of usersChartResult)
-      if (chartMap[r.date]) chartMap[r.date].users = Number(r.count);
+    for (const u of usage) {
+      const date = new Date(u.createdAt).toISOString().split("T")[0];
+      if (chartMap[date]) chartMap[date].requests++;
+    }
+    for (const u of users) {
+      const date = new Date(u.createdAt).toISOString().split("T")[0];
+      if (chartMap[date]) chartMap[date].users++;
+    }
     const chart = Object.entries(chartMap)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, data]) => ({ date, ...data }));
 
-    /* Uptime = success rate in last 30 days */
-    const statusResult = await prisma.$queryRaw<
-      { status: number; count: bigint }[]
-    >`
-      SELECT status, COUNT(*) as count
-      FROM "UsageRecord"
-      WHERE "createdAt" >= ${thirtyDaysAgo}
-      GROUP BY status
-    `;
-    const totalRecent = statusResult.reduce(
-      (sum, s) => sum + Number(s.count),
-      0
+    const recentUsage30 = usage.filter(
+      (u: any) => new Date(u.createdAt) >= thirtyDaysAgo
     );
-    const successCount = statusResult
-      .filter((s) => s.status >= 200 && s.status < 400)
-      .reduce((sum, s) => sum + Number(s.count), 0);
+    const successCount = recentUsage30.filter(
+      (u: any) => u.value >= 0 && u.value < 400
+    ).length;
     const uptime =
-      totalRecent > 0
-        ? Math.round((successCount / totalRecent) * 10000) / 100
+      recentUsage30.length > 0
+        ? Math.round((successCount / recentUsage30.length) * 10000) / 100
         : 100;
 
     return NextResponse.json({
@@ -128,13 +96,10 @@ export async function GET(req: NextRequest) {
       totalRequests,
       activeUsers,
       newUsersToday,
-      avgLatency: Math.round(Number(avgLatencyResult._avg.latency) || 0),
+      avgLatency,
       uptime,
       chart,
-      topEndpoints: topEndpoints.map((e) => ({
-        endpoint: e.endpoint,
-        count: Number(e.count),
-      })),
+      topEndpoints,
       hourlyDistribution,
     });
   } catch (err: any) {

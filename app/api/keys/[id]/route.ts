@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, createAuditLog } from "@/lib/auth";
-import { db } from "@/lib/db/prisma";
+import { deleteEntity } from "@/lib/render-client";
 
 export async function DELETE(
   req: NextRequest,
@@ -9,9 +9,7 @@ export async function DELETE(
   try {
     const session = await requireAuth(req);
 
-    await db.apiKey.deleteMany({
-      where: { id: params.id, userId: session.id },
-    });
+    await deleteEntity("apikeys", params.id);
 
     await createAuditLog(
       session.id,

@@ -1,24 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, createAuditLog } from "@/lib/auth";
-import { db } from "@/lib/db/prisma";
+import { getEntityById, deleteEntity } from "@/lib/render-client";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await requireAuth(req);
+    await requireAuth(req);
 
-    const project = await db.project.findFirst({
-      where: { id: params.id, userId: session.id },
-      include: { apiKeys: true },
-    });
+    let project;
+    try {
+      project = await getEntityById("projects", params.id);
+    } catch {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     if (!project) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ project });
+    return NextResponse.json({
+      project: {
+        id: project.id,
+        name: project.name,
+        description: project.description || "",
+        endpoint: `/api/v1/${(project.name || "").toLowerCase().replace(/\s+/g, "-") || project.id}`,
+        code: "",
+        category: project.category || "",
+        value: project.value || 0,
+        createdAt: project.createdAt,
+        updatedAt: project.createdAt,
+        apiKeys: [],
+      },
+    });
   } catch (error: any) {
     if (error.message === "UNAUTHORIZED")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,11 +48,9 @@ export async function DELETE(
   try {
     const session = await requireAuth(req);
 
-    const deleted = await db.project.deleteMany({
-      where: { id: params.id, userId: session.id },
-    });
-
-    if (deleted.count === 0) {
+    try {
+      await deleteEntity("projects", params.id);
+    } catch {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 

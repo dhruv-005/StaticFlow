@@ -1,101 +1,89 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { db } from "@/lib/db/prisma";
+import { getEntities } from "@/lib/render-client";
 
 export async function GET(req: NextRequest) {
   try {
     await requireAdmin(req);
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    const [
-      totalUsers,
-      totalProjects,
-      totalKeys,
-      totalAuditLogs,
-      totalCalls,
-      activeUserIds,
-      recentUsers,
-      recentLogs,
-      usageByDay,
-      usersByRole,
-    ] = await Promise.all([
-      db.user.count(),
-      db.project.count(),
-      db.apiKey.count(),
-      db.auditLog.count(),
-      db.usageRecord.count(),
-      db.usageRecord.findMany({
-        where: { createdAt: { gte: sevenDaysAgo } },
-        select: { userId: true },
-        distinct: ["userId"],
-      }),
-      db.user.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 10,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          createdAt: true,
-          _count: { select: { projects: true, apiKeys: true } },
-        },
-      }),
-      db.auditLog.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 20,
-        include: {
-          user: { select: { name: true, email: true } },
-        },
-      }),
-      db.usageRecord.findMany({
-        where: { createdAt: { gte: thirtyDaysAgo } },
-        select: { createdAt: true },
-      }),
-      db.user.groupBy({ by: ["role"], _count: true }),
-    ]);
+    const [usersRes, projectsRes, keysRes, usageRes, auditRes] =
+      await Promise.all([
+        getEntities("users", 10000),
+        getEntities("projects", 10000),
+        getEntities("apikeys", 10000),
+        getEntities("usagerecords", 10000),
+        getEntities("auditlogs", 10000),
+      ]);
+
+    const users = usersRes.data;
+    const usage = usageRes.data;
+    const audit = auditRes.data;
+
+    const activeUserIds = new Set(
+      usage
+        .filter((u: any) => new Date(u.createdAt) >= sevenDaysAgo)
+        .map((u: any) => u.category)
+    );
+
+    const recentUsers = users.slice(0, 10).map((u: any) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email || "",
+      role: u.role || "USER",
+      createdAt: u.createdAt,
+      _count: { projects: 0, apiKeys: 0 },
+    }));
+
+    const recentLogs = audit.slice(0, 20).map((l: any) => ({
+      id: l.id,
+      action: l.name || "UNKNOWN",
+      details: l.description || "",
+      userName: l.category || "System",
+      createdAt: l.createdAt,
+      ipAddress: "—",
+    }));
 
     const chartData: { date: string; calls: number }[] = [];
     for (let i = 29; i >= 0; i--) {
       const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
       const dateStr = d.toISOString().split("T")[0];
-      const count = usageByDay.filter(
-        (r) => r.createdAt.toISOString().split("T")[0] === dateStr
+      const count = usage.filter(
+        (u: any) =>
+          new Date(u.createdAt).toISOString().split("T")[0] === dateStr
       ).length;
       chartData.push({ date: dateStr, calls: count });
     }
 
+    const roleMap: Record<string, number> = {};
+    for (const u of users) {
+      const r = (u.role || "USER").toUpperCase();
+      roleMap[r] = (roleMap[r] || 0) + 1;
+    }
+
     return NextResponse.json({
       stats: {
-        totalUsers,
-        totalProjects,
-        totalKeys,
-        totalCalls,
-        totalAuditLogs,
-        activeUsers: activeUserIds.length,
-        roles: usersByRole.reduce(
-          (a: any, r: any) => ({ ...a, [r.role]: r._count }),
-          {}
-        ),
+        totalUsers: usersRes.total,
+        totalProjects: projectsRes.total,
+        totalKeys: keysRes.total,
+        totalCalls: usageRes.total,
+        totalAuditLogs: auditRes.total,
+        activeUsers: activeUserIds.size,
+        roles: roleMap,
       },
       chartData,
       recentUsers,
-      recentLogs: recentLogs.map((l: any) => ({
-        id: l.id,
-        action: l.action,
-        details: l.details,
-        userName: l.user?.name || l.user?.email || "System",
-        createdAt: l.createdAt,
-        ipAddress: l.ipAddress,
-      })),
+      recentLogs,
     });
   } catch (error: any) {
     if (error.message === "UNAUTHORIZED")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (error.message === "FORBIDDEN")
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Admin access required" },
+        { status: 403 }
+      );
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
