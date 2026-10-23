@@ -8,8 +8,6 @@ import {
   updateEntity,
 } from "@/lib/render-client";
 
-/* ── Constants ── */
-
 const JWT_SECRET = new TextEncoder().encode(
   process.env.NEXTAUTH_SECRET ||
     process.env.JWT_SECRET ||
@@ -21,8 +19,6 @@ export const SUPER_ADMIN_EMAILS = [
   "admin@api.com",
   "vatsal@api.com",
 ];
-
-/* ── Types ── */
 
 export interface SessionUser {
   id: string;
@@ -36,13 +32,9 @@ export interface Session {
   expires: string;
 }
 
-/* ── Super Admin Check ── */
-
 export function isSuperAdmin(email: string): boolean {
   return SUPER_ADMIN_EMAILS.includes(email.toLowerCase().trim());
 }
-
-/* ── Password Storage (via Render systemsettings) ── */
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12);
@@ -60,21 +52,28 @@ export async function storePasswordHash(
   hash: string
 ): Promise<void> {
   const key = `pwd:${email.toLowerCase().trim()}`;
-  const res = await getEntities("systemsettings", 10000);
-  const existing = res.data.find((s: any) => s.name === key);
-  if (existing) {
-    await updateEntity("systemsettings", existing.id, {
-      name: key,
-      description: hash,
-      category: "PASSWORD",
-    });
-  } else {
-    await createEntity("systemsettings", {
-      name: key,
-      description: hash,
-      value: 0,
-      category: "PASSWORD",
-    });
+  try {
+    const res = await getEntities("systemsettings", 10000);
+    const existing = res.data.find((s: any) => s.name === key);
+    if (existing) {
+      await updateEntity("systemsettings", existing.id, {
+        name: key,
+        description: hash,
+        category: "PASSWORD",
+      });
+      console.log("[AUTH] Updated password hash for", email);
+    } else {
+      await createEntity("systemsettings", {
+        name: key,
+        description: hash,
+        value: 0,
+        category: "PASSWORD",
+      });
+      console.log("[AUTH] Created password hash for", email);
+    }
+  } catch (err) {
+    console.error("[AUTH] Failed to store password hash for", email, err);
+    throw err;
   }
 }
 
@@ -82,12 +81,16 @@ export async function getPasswordHash(
   email: string
 ): Promise<string | null> {
   const key = `pwd:${email.toLowerCase().trim()}`;
-  const res = await getEntities("systemsettings", 10000);
-  const entry = res.data.find((s: any) => s.name === key);
-  return entry?.description || null;
+  try {
+    const res = await getEntities("systemsettings", 10000);
+    const entry = res.data.find((s: any) => s.name === key);
+    console.log("[AUTH] Lookup hash for", email, "found:", !!entry);
+    return entry?.description || null;
+  } catch (err) {
+    console.error("[AUTH] Failed to get hash for", email, err);
+    return null;
+  }
 }
-
-/* ── Reset Token Storage (via Render systemsettings) ── */
 
 export async function storeResetToken(
   email: string,
@@ -95,22 +98,27 @@ export async function storeResetToken(
   expiresAt: number
 ): Promise<void> {
   const key = `reset:${email.toLowerCase().trim()}`;
-  const res = await getEntities("systemsettings", 10000);
-  const existing = res.data.find((s: any) => s.name === key);
-  if (existing) {
-    await updateEntity("systemsettings", existing.id, {
-      name: key,
-      description: token,
-      value: expiresAt,
-      category: "RESET_TOKEN",
-    });
-  } else {
-    await createEntity("systemsettings", {
-      name: key,
-      description: token,
-      value: expiresAt,
-      category: "RESET_TOKEN",
-    });
+  try {
+    const res = await getEntities("systemsettings", 10000);
+    const existing = res.data.find((s: any) => s.name === key);
+    if (existing) {
+      await updateEntity("systemsettings", existing.id, {
+        name: key,
+        description: token,
+        value: expiresAt,
+        category: "RESET_TOKEN",
+      });
+    } else {
+      await createEntity("systemsettings", {
+        name: key,
+        description: token,
+        value: expiresAt,
+        category: "RESET_TOKEN",
+      });
+    }
+  } catch (err) {
+    console.error("[AUTH] Failed to store reset token", err);
+    throw err;
   }
 }
 
@@ -118,13 +126,15 @@ export async function getResetToken(
   email: string
 ): Promise<{ token: string; expiresAt: number } | null> {
   const key = `reset:${email.toLowerCase().trim()}`;
-  const res = await getEntities("systemsettings", 10000);
-  const entry = res.data.find((s: any) => s.name === key);
-  if (!entry) return null;
-  return { token: entry.description, expiresAt: entry.value || 0 };
+  try {
+    const res = await getEntities("systemsettings", 10000);
+    const entry = res.data.find((s: any) => s.name === key);
+    if (!entry) return null;
+    return { token: entry.description, expiresAt: entry.value || 0 };
+  } catch {
+    return null;
+  }
 }
-
-/* ── JWT ── */
 
 export async function createToken(user: SessionUser): Promise<string> {
   return new SignJWT({
@@ -154,8 +164,6 @@ export async function verifyToken(
     return null;
   }
 }
-
-/* ── Session ── */
 
 export async function getSession(): Promise<Session | null> {
   const cookieStore = cookies();
@@ -214,8 +222,6 @@ export async function getCurrentUser() {
   }
 }
 
-/* ── Auth Guards ── */
-
 export async function requireAuth(
   _req?: NextRequest
 ): Promise<SessionUser> {
@@ -245,8 +251,6 @@ export async function requireSuperAdmin(
   }
   return user;
 }
-
-/* ── Audit Log (via Render) ── */
 
 export async function createAuditLog(
   userIdOrParams:
@@ -289,8 +293,6 @@ export async function createAuditLog(
     console.error("Audit log failed:", e);
   }
 }
-
-/* ── Usage Tracking (via Render) ── */
 
 export async function trackUsage(
   userIdOrParams:

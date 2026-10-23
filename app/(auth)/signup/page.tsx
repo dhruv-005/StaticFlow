@@ -37,7 +37,7 @@ export default function SignupPage() {
         return;
       }
 
-      router.push("/login?registered=true");
+      router.push("/");
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -130,10 +130,7 @@ export default function SignupPage() {
 
           <p className="text-center text-sm text-gray-400">
             Already have an account?{" "}
-            <Link
-              href="/login"
-              className="text-blue-400 hover:text-blue-300"
-            >
+            <Link href="/login" className="text-blue-400 hover:text-blue-300">
               Sign in
             </Link>
           </p>

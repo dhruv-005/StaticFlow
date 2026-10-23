@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   verifyPassword,
-  getPasswordHash,
   isSuperAdmin,
   createToken,
   createAuditLog,
@@ -27,15 +26,17 @@ export async function POST(req: NextRequest) {
     );
 
     if (!user) {
+      console.log("[LOGIN] User not found:", cleanEmail);
       return NextResponse.json(
         { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    const hash = await getPasswordHash(cleanEmail);
+    const hash = user.description || "";
 
-    if (!hash) {
+    if (!hash || !hash.startsWith("$2")) {
+      console.log("[LOGIN] No valid hash found for:", cleanEmail, "desc length:", hash.length);
       return NextResponse.json(
         { error: "Invalid email or password" },
         { status: 401 }
@@ -45,10 +46,11 @@ export async function POST(req: NextRequest) {
     const valid = await verifyPassword(password, hash);
 
     if (!valid) {
+      console.log("[LOGIN] Password mismatch for:", cleanEmail);
       await createAuditLog(
         String(user.id),
         "LOGIN_FAILED",
-        `Failed login attempt for ${cleanEmail}`,
+        `Failed login for ${cleanEmail}`,
         req
       );
       return NextResponse.json(
@@ -67,6 +69,8 @@ export async function POST(req: NextRequest) {
       name: user.name,
       role: role as "USER" | "ADMIN",
     });
+
+    console.log("[LOGIN] Success:", cleanEmail, "role:", role);
 
     await createAuditLog(
       String(user.id),

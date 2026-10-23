@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   hashPassword,
-  storePasswordHash,
   getResetToken,
   createAuditLog,
 } from "@/lib/auth";
-import { getEntities } from "@/lib/render-client";
+import { getEntities, updateEntity } from "@/lib/render-client";
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,23 +28,9 @@ export async function POST(req: NextRequest) {
 
     const stored = await getResetToken(cleanEmail);
 
-    if (!stored) {
+    if (!stored || stored.token !== token || Date.now() > stored.expiresAt) {
       return NextResponse.json(
         { error: "Invalid or expired reset token" },
-        { status: 400 }
-      );
-    }
-
-    if (stored.token !== token) {
-      return NextResponse.json(
-        { error: "Invalid or expired reset token" },
-        { status: 400 }
-      );
-    }
-
-    if (Date.now() > stored.expiresAt) {
-      return NextResponse.json(
-        { error: "Reset token has expired" },
         { status: 400 }
       );
     }
@@ -63,7 +48,11 @@ export async function POST(req: NextRequest) {
     }
 
     const hash = await hashPassword(newPassword);
-    await storePasswordHash(cleanEmail, hash);
+    await updateEntity("users", user.id, {
+      name: user.name,
+      email: cleanEmail,
+      description: hash,
+    });
 
     await createAuditLog(
       String(user.id),
