@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  hashPassword,
-  getResetToken,
-  createAuditLog,
-} from "@/lib/auth";
-import { getEntities, updateEntity } from "@/lib/render-client";
+import { prisma } from "@/lib/db/prisma";
+import { hashPassword, createAuditLog } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,19 +22,38 @@ export async function POST(req: NextRequest) {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    const stored = await getResetToken(cleanEmail);
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: `reset:${cleanEmail}` },
+    });
 
-    if (!stored || stored.token !== token || Date.now() > stored.expiresAt) {
+    if (!setting) {
       return NextResponse.json(
         { error: "Invalid or expired reset token" },
         { status: 400 }
       );
     }
 
-    const res = await getEntities("users", 10000);
-    const user = res.data.find(
-      (u: any) => u.email?.toLowerCase() === cleanEmail
-    );
+    const parts = setting.value.split(":");
+    const storedToken = parts[0];
+    const expiresAt = parts.slice(1).join(":");
+
+    if (storedToken !== token) {
+      return NextResponse.json(
+        { error: "Invalid or expired reset token" },
+        { status: 400 }
+      );
+    }
+
+    if (new Date(expiresAt) < new Date()) {
+      return NextResponse.json(
+        { error: "Reset token has expired" },
+        { status: 400 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+    });
 
     if (!user) {
       return NextResponse.json(
@@ -48,14 +63,18 @@ export async function POST(req: NextRequest) {
     }
 
     const hash = await hashPassword(newPassword);
-    await updateEntity("users", user.id, {
-      name: user.name,
-      email: cleanEmail,
-      description: hash,
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hash },
+    });
+
+    await prisma.systemSetting.delete({
+      where: { key: `reset:${cleanEmail}` },
     });
 
     await createAuditLog(
-      String(user.id),
+      user.id,
       "PASSWORD_RESET",
       `Password reset for ${cleanEmail}`,
       req

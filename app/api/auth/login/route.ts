@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db/prisma";
 import {
   verifyPassword,
   isSuperAdmin,
   createToken,
   createAuditLog,
 } from "@/lib/auth";
-import { getEntities } from "@/lib/render-client";
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,35 +20,22 @@ export async function POST(req: NextRequest) {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    const res = await getEntities("users", 10000);
-    const user = res.data.find(
-      (u: any) => u.email?.toLowerCase() === cleanEmail
-    );
+    const user = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+    });
 
     if (!user) {
-      console.log("[LOGIN] User not found:", cleanEmail);
       return NextResponse.json(
         { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    const hash = user.description || "";
-
-    if (!hash || !hash.startsWith("$2")) {
-      console.log("[LOGIN] No valid hash found for:", cleanEmail, "desc length:", hash.length);
-      return NextResponse.json(
-        { error: "Invalid email or password" },
-        { status: 401 }
-      );
-    }
-
-    const valid = await verifyPassword(password, hash);
+    const valid = await verifyPassword(password, user.password);
 
     if (!valid) {
-      console.log("[LOGIN] Password mismatch for:", cleanEmail);
       await createAuditLog(
-        String(user.id),
+        user.id,
         "LOGIN_FAILED",
         `Failed login for ${cleanEmail}`,
         req
@@ -61,19 +48,17 @@ export async function POST(req: NextRequest) {
 
     const role = isSuperAdmin(cleanEmail)
       ? "ADMIN"
-      : (user.role || "USER").toUpperCase();
+      : user.role;
 
     const token = await createToken({
-      id: String(user.id),
+      id: user.id,
       email: cleanEmail,
       name: user.name,
       role: role as "USER" | "ADMIN",
     });
 
-    console.log("[LOGIN] Success:", cleanEmail, "role:", role);
-
     await createAuditLog(
-      String(user.id),
+      user.id,
       "USER_LOGIN",
       `User ${cleanEmail} logged in`,
       req

@@ -2,11 +2,9 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
-import {
-  getEntities,
-  createEntity,
-  updateEntity,
-} from "@/lib/render-client";
+import { createEntity } from "@/lib/render-client";
+
+/* ── Constants ── */
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.NEXTAUTH_SECRET ||
@@ -20,6 +18,8 @@ export const SUPER_ADMIN_EMAILS = [
   "vatsal@api.com",
 ];
 
+/* ── Types ── */
+
 export interface SessionUser {
   id: string;
   email: string;
@@ -31,6 +31,8 @@ export interface Session {
   user: SessionUser;
   expires: string;
 }
+
+/* ── Helpers ── */
 
 export function isSuperAdmin(email: string): boolean {
   return SUPER_ADMIN_EMAILS.includes(email.toLowerCase().trim());
@@ -47,94 +49,7 @@ export async function verifyPassword(
   return bcrypt.compare(password, hash);
 }
 
-export async function storePasswordHash(
-  email: string,
-  hash: string
-): Promise<void> {
-  const key = `pwd:${email.toLowerCase().trim()}`;
-  try {
-    const res = await getEntities("systemsettings", 10000);
-    const existing = res.data.find((s: any) => s.name === key);
-    if (existing) {
-      await updateEntity("systemsettings", existing.id, {
-        name: key,
-        description: hash,
-        category: "PASSWORD",
-      });
-      console.log("[AUTH] Updated password hash for", email);
-    } else {
-      await createEntity("systemsettings", {
-        name: key,
-        description: hash,
-        value: 0,
-        category: "PASSWORD",
-      });
-      console.log("[AUTH] Created password hash for", email);
-    }
-  } catch (err) {
-    console.error("[AUTH] Failed to store password hash for", email, err);
-    throw err;
-  }
-}
-
-export async function getPasswordHash(
-  email: string
-): Promise<string | null> {
-  const key = `pwd:${email.toLowerCase().trim()}`;
-  try {
-    const res = await getEntities("systemsettings", 10000);
-    const entry = res.data.find((s: any) => s.name === key);
-    console.log("[AUTH] Lookup hash for", email, "found:", !!entry);
-    return entry?.description || null;
-  } catch (err) {
-    console.error("[AUTH] Failed to get hash for", email, err);
-    return null;
-  }
-}
-
-export async function storeResetToken(
-  email: string,
-  token: string,
-  expiresAt: number
-): Promise<void> {
-  const key = `reset:${email.toLowerCase().trim()}`;
-  try {
-    const res = await getEntities("systemsettings", 10000);
-    const existing = res.data.find((s: any) => s.name === key);
-    if (existing) {
-      await updateEntity("systemsettings", existing.id, {
-        name: key,
-        description: token,
-        value: expiresAt,
-        category: "RESET_TOKEN",
-      });
-    } else {
-      await createEntity("systemsettings", {
-        name: key,
-        description: token,
-        value: expiresAt,
-        category: "RESET_TOKEN",
-      });
-    }
-  } catch (err) {
-    console.error("[AUTH] Failed to store reset token", err);
-    throw err;
-  }
-}
-
-export async function getResetToken(
-  email: string
-): Promise<{ token: string; expiresAt: number } | null> {
-  const key = `reset:${email.toLowerCase().trim()}`;
-  try {
-    const res = await getEntities("systemsettings", 10000);
-    const entry = res.data.find((s: any) => s.name === key);
-    if (!entry) return null;
-    return { token: entry.description, expiresAt: entry.value || 0 };
-  } catch {
-    return null;
-  }
-}
+/* ── JWT ── */
 
 export async function createToken(user: SessionUser): Promise<string> {
   return new SignJWT({
@@ -165,6 +80,8 @@ export async function verifyToken(
   }
 }
 
+/* ── Session ── */
+
 export async function getSession(): Promise<Session | null> {
   const cookieStore = cookies();
   const token = cookieStore.get("sf_token")?.value;
@@ -184,12 +101,23 @@ export async function getCurrentUser() {
   if (!session) return null;
 
   try {
-    const res = await getEntities("users", 10000);
-    const user = res.data.find(
-      (u: any) =>
-        u.email === session.user.email ||
-        String(u.id) === String(session.user.id)
-    );
+    const { prisma } = await import("@/lib/db/prisma");
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+        _count: {
+          select: {
+            apiKeys: true,
+            projects: true,
+          },
+        },
+      },
+    });
 
     if (!user) {
       return {
@@ -202,14 +130,7 @@ export async function getCurrentUser() {
       };
     }
 
-    return {
-      id: String(user.id),
-      email: user.email,
-      name: user.name,
-      role: (user.role || "USER").toUpperCase(),
-      createdAt: user.createdAt,
-      _count: { apiKeys: 0, projects: 0 },
-    };
+    return user;
   } catch {
     return {
       id: session.user.id,
@@ -221,6 +142,8 @@ export async function getCurrentUser() {
     };
   }
 }
+
+/* ── Auth Guards ── */
 
 export async function requireAuth(
   _req?: NextRequest
@@ -252,6 +175,8 @@ export async function requireSuperAdmin(
   return user;
 }
 
+/* ── Audit Log (uses Prisma / Supabase) ── */
+
 export async function createAuditLog(
   userIdOrParams:
     | string
@@ -271,28 +196,32 @@ export async function createAuditLog(
   try {
     let logAction = "UNKNOWN";
     let logDetails = "";
-    let logUserId = "";
+    let logUserId: string | null = null;
 
     if (typeof userIdOrParams === "string") {
       logUserId = userIdOrParams;
       logAction = action || "UNKNOWN";
       logDetails = details || "";
     } else {
-      logUserId = userIdOrParams.userId || "";
+      logUserId = userIdOrParams.userId || null;
       logAction = userIdOrParams.action;
       logDetails = userIdOrParams.details || "";
     }
 
-    await createEntity("auditlogs", {
-      name: logAction,
-      description: logDetails,
-      value: 0,
-      category: logUserId,
+    const { prisma } = await import("@/lib/db/prisma");
+    await prisma.auditLog.create({
+      data: {
+        action: logAction,
+        details: logDetails || null,
+        userId: logUserId,
+      },
     });
   } catch (e) {
     console.error("Audit log failed:", e);
   }
 }
+
+/* ── Usage Tracking (uses Render) ── */
 
 export async function trackUsage(
   userIdOrParams:

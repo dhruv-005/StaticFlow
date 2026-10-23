@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { storeResetToken } from "@/lib/auth";
-import { getEntities } from "@/lib/render-client";
+import { prisma } from "@/lib/db/prisma";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
@@ -15,10 +14,10 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    const res = await getEntities("users", 10000);
-    const user = res.data.find(
-      (u: any) => u.email?.toLowerCase() === cleanEmail
-    );
+
+    const user = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+    });
 
     if (!user) {
       return NextResponse.json({
@@ -27,9 +26,16 @@ export async function POST(req: NextRequest) {
     }
 
     const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = Date.now() + 60 * 60 * 1000;
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-    await storeResetToken(cleanEmail, token, expiresAt);
+    await prisma.systemSetting.upsert({
+      where: { key: `reset:${cleanEmail}` },
+      update: { value: `${token}:${expiresAt.toISOString()}` },
+      create: {
+        key: `reset:${cleanEmail}`,
+        value: `${token}:${expiresAt.toISOString()}`,
+      },
+    });
 
     return NextResponse.json({
       message: "If an account exists, a reset link has been sent.",

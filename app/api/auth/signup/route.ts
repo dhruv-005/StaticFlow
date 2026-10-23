@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  hashPassword,
-  isSuperAdmin,
-  createAuditLog,
-} from "@/lib/auth";
-import { getEntities, createEntity } from "@/lib/render-client";
+import { prisma } from "@/lib/db/prisma";
+import { hashPassword, isSuperAdmin, createAuditLog } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,18 +21,10 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(cleanEmail)) {
-      return NextResponse.json(
-        { error: "Invalid email format" },
-        { status: 400 }
-      );
-    }
 
-    const res = await getEntities("users", 10000);
-    const exists = res.data.find(
-      (u: any) => u.email?.toLowerCase() === cleanEmail
-    );
+    const exists = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+    });
 
     if (exists) {
       return NextResponse.json(
@@ -46,21 +34,19 @@ export async function POST(req: NextRequest) {
     }
 
     const hash = await hashPassword(password);
-    const role = isSuperAdmin(cleanEmail) ? "admin" : "user";
+    const role = isSuperAdmin(cleanEmail) ? "ADMIN" : "USER";
 
-    const user = await createEntity("users", {
-      name: name.trim(),
-      email: cleanEmail,
-      role,
-      description: hash,
-      isActive: true,
-      lastLogin: new Date().toISOString(),
+    const user = await prisma.user.create({
+      data: {
+        name: name.trim(),
+        email: cleanEmail,
+        password: hash,
+        role: role as any,
+      },
     });
 
-    console.log("[SIGNUP] Created user:", cleanEmail, "role:", role, "hash stored in description");
-
     await createAuditLog(
-      String(user?.id || "new"),
+      user.id,
       "USER_SIGNUP",
       `New user registered: ${cleanEmail}`,
       req
@@ -70,10 +56,10 @@ export async function POST(req: NextRequest) {
       {
         message: "Account created successfully",
         user: {
-          id: user?.id || Date.now(),
-          name: name.trim(),
-          email: cleanEmail,
-          role: role.toUpperCase(),
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
         },
       },
       { status: 201 }
